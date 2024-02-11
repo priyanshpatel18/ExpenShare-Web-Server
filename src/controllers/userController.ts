@@ -126,8 +126,8 @@ export const sendMail = async (req: Request, res: Response) => {
   const transporter: nodemailer.Transporter<SMTPTransport.SentMessageInfo> =
     nodemailer.createTransport({
       service: "gmail",
-      host: "smtp.gmail.com",
-      port: 465,
+      host: String(process.env.SMTP_HOST),
+      port: Number(process.env.SMTP_PORT),
       secure: true,
       auth: {
         user: process.env.USER,
