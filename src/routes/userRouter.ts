@@ -1,5 +1,5 @@
 import { Router } from "express";
-import * as userController from "../controllers/userController";
+import * as userController from "../controllers/webUserController";
 import upload from "../middlewares/multer";
 import { sessionMiddleware } from "../middlewares/session";
 import allowOnlyLoggedInUser from "../middlewares/userAuth";

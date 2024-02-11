@@ -9,6 +9,7 @@ import path from "path";
 // File Imports
 import { mailRouter, userRouter } from "./routes/userRouter";
 import { clearExpiredSessions } from "./utils/sessionUtils";
+import appRouter from "./routes/userRouterV2";
 
 // Creating Backend Application
 const app: Express = express();
@@ -25,8 +26,9 @@ app.set("views", path.resolve("./views"));
 
 // Routes
 app.use("/uploads", express.static("uploads"));
-app.use("/user", userRouter);
-app.use("/user", mailRouter);
+app.use("/user/v1", userRouter);
+app.use("/user/v1", mailRouter);
+app.use("/user/v2", appRouter);
 
 // Session Cleanup
 cron.schedule(

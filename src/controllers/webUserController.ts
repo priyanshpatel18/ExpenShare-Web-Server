@@ -7,7 +7,7 @@ import SMTPTransport from "nodemailer/lib/smtp-transport";
 import otpGenerator from "otp-generator";
 import path from "path";
 import User, { UserDocument } from "../models/userModel";
-import { setToken } from "../service/auth";
+import { setToken } from "../service/webAuth";
 import cloudinary from "../utils/cloudinary";
 import { deleteSession } from "../utils/sessionUtils";
 
@@ -62,7 +62,7 @@ export const registerUser = async (req: Request, res: Response) => {
 export const loginUser = async (req: Request, res: Response) => {
   const { userNameOrEmail, password } = req.body;
 
-  console.log(userNameOrEmail, password);
+  
 
   try {
     const user: UserDocument | null = await User.findOne({
@@ -72,10 +72,6 @@ export const loginUser = async (req: Request, res: Response) => {
     // Check if User Exist or not
     if (!user) {
       return res.status(401).send("You need to Register First");
-    }
-    // Check if User has Google Account or Not
-    if (!user.password) {
-      return res.status(402).send("You need to login via Google");
     }
 
     // Comapre the Password using bcrypt
