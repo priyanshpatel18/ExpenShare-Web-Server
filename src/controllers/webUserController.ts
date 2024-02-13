@@ -162,7 +162,8 @@ export const verifyEmail = async (req: Request, res: Response) => {
 
 // POST: /user/v1/verifyOtp
 export const verifyOtp = async (req: Request, res: Response) => {
-  const { userOtp, otpId } = req.body;
+  const { userOtp } = req.body;
+  const { otpId } = req.cookies;
 
   // Verify OTP
   try {

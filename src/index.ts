@@ -28,8 +28,7 @@ app.set("view-engine", "ejs");
 app.set("views", path.resolve("./views"));
 
 // Routes
-app.use("/user/v1", webUserRouter);
-// app.use("/user/v2", appUserRouter);
+app.use("/user", webUserRouter);
 
 // OTP Cleanup
 cron.schedule(
