@@ -14,8 +14,6 @@ import { clearExpiredOTPs } from "./utils/otpUtils";
 // Creating Backend Application
 const app: Express = express();
 
-// Set Trust Proxy
-app.set("trust proxy", true);
 // Middlewares
 app.use(
   cors({
@@ -31,7 +29,6 @@ app.set("view-engine", "ejs");
 app.set("views", path.resolve("./views"));
 
 // Routes
-app.use("/uploads", express.static("uploads"));
 app.use("/user/v1", webUserRouter);
 app.use("/user/v2", appUserRouter);
 
