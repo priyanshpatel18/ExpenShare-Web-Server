@@ -6,11 +6,12 @@ import nodemailer from "nodemailer";
 import SMTPTransport from "nodemailer/lib/smtp-transport";
 import otpGenerator from "otp-generator";
 import path from "path";
+import OTP, { OTPDocument } from "../models/otpModel";
 import User, { UserDocument } from "../models/userModel";
-import { setToken } from "../service/webAuth";
+import { setToken } from "../service/auth";
 import cloudinary from "../utils/cloudinary";
-import { deleteSession } from "../utils/sessionUtils";
 
+// POST : /user/v1/register
 export const registerUser = async (req: Request, res: Response) => {
   try {
     const { email, userName, password } = req.body;
@@ -50,8 +51,6 @@ export const registerUser = async (req: Request, res: Response) => {
       password,
     });
 
-    deleteSession(req, res);
-    res.clearCookie("connect.sid");
     res.status(200).send("User registered successfully");
   } catch (error) {
     console.error(error);
@@ -59,10 +58,9 @@ export const registerUser = async (req: Request, res: Response) => {
   }
 };
 
+// POST: /user/v1/login
 export const loginUser = async (req: Request, res: Response) => {
   const { userNameOrEmail, password } = req.body;
-
-  
 
   try {
     const user: UserDocument | null = await User.findOne({
@@ -85,7 +83,6 @@ export const loginUser = async (req: Request, res: Response) => {
     } else {
       // Set Token in Cookies if password is correct
       const token = setToken(user);
-
       res.cookie("token", token, {
         httpOnly: true,
         secure: true,
@@ -99,16 +96,9 @@ export const loginUser = async (req: Request, res: Response) => {
   }
 };
 
-export const sendMail = async (req: Request, res: Response) => {
+// POST: /user/v1/verifyEmail
+export const verifyEmail = async (req: Request, res: Response) => {
   const { email } = req.body;
-
-  const user: UserDocument | null = await User.findOne({ email });
-  // Check for User Existence
-  if (!user) {
-    return res.status(401).send("You need to Register First");
-  }
-  // Set Email in the session
-  req.session.email = email;
 
   // Generate OTP and set it in the session
   const otp: string = otpGenerator.generate(6, {
@@ -116,102 +106,6 @@ export const sendMail = async (req: Request, res: Response) => {
     upperCaseAlphabets: false,
     specialChars: false,
   });
-  req.session.otp = otp;
-
-  // Configure Transporter
-  const transporter: nodemailer.Transporter<SMTPTransport.SentMessageInfo> =
-    nodemailer.createTransport({
-      service: "gmail",
-      host: String(process.env.SMTP_HOST),
-      port: Number(process.env.SMTP_PORT),
-      secure: true,
-      auth: {
-        user: process.env.USER,
-        pass: process.env.PASS,
-      },
-    });
-
-  // Render EJS Template
-  const templatePath: string = path.resolve(
-    __dirname,
-    "../views/mailFormat.ejs"
-  );
-  const htmlContent: string = await ejs.renderFile(templatePath, { otp });
-
-  // Send Email
-  const mailOptions = {
-    from: String(process.env.USER),
-    to: email,
-    subject: "OTP Verification",
-    html: htmlContent,
-  };
-
-  // Send Mail Via Transporter
-  try {
-    await transporter.sendMail(mailOptions);
-    res.status(200).send("OTP sent successfully");
-  } catch (error) {
-    deleteSession(req, res);
-    res.clearCookie("connect.sid");
-    console.log(error);
-    res.status(500).send("Internal Server Error");
-  }
-};
-
-export const verifyOtp = (req: Request, res: Response) => {
-  const { inputOtp } = req.body;
-  const { otp, email } = req.session;
-
-  // Verify OTP
-  try {
-    if (inputOtp !== otp) {
-      res.status(401).send("Incorrect OTP");
-      return;
-    }
-
-    res.status(200).json({ email: email });
-  } catch (error) {
-    console.log(error);
-    res.status(500).send("Internal server error");
-  }
-};
-
-export const getEmail = (req: Request, res: Response) => {
-  // Get Email from Session and send json
-  const { email } = req.session;
-
-  try {
-    if (!req.session || !req.session.email) {
-      return res.status(401).send("Session data not found");
-    }
-
-    if (!email) {
-      return res.send(401).send("Error Fetching Email");
-    }
-
-    res.status(200).json({ email });
-  } catch (error) {
-    console.log(error);
-    res.status(500).send("Internal server error");
-  }
-};
-
-export const sendEmailVerificationMail = async (
-  req: Request,
-  res: Response
-) => {
-  const { email } = req.body;
-
-  // Set Email in the session
-  req.session.email = email;
-
-  // Generate OTP and set it in the session
-  const otp: string = otpGenerator.generate(6, {
-    lowerCaseAlphabets: false,
-    upperCaseAlphabets: false,
-    specialChars: false,
-  });
-  req.session.otp = otp;
 
   // Configure Transporter
   const transporter: nodemailer.Transporter<SMTPTransport.SentMessageInfo> =
@@ -243,15 +137,68 @@ export const sendEmailVerificationMail = async (
 
   try {
     await transporter.sendMail(mailOptions);
-    res.status(200).json({ message: "OTP sent successfully" });
+
+    // Hash OTP and save it in the database
+    const salt = await bcrypt.genSalt(10);
+    const hashedOtp = await bcrypt.hash(otp, salt);
+
+    const otpDocument: OTPDocument = await OTP.create({
+      otp: hashedOtp,
+      email: email,
+    });
+
+    // Set the OTP ID in the cookies
+    res.cookie("otpId", otpDocument._id, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "none",
+    });
+    res.status(200).json({ message: "OTP Sent Successfully" });
   } catch (error) {
-    deleteSession(req, res);
-    res.clearCookie("connect.sid");
     console.log(error);
     res.status(500).send("Internal Server Error");
   }
 };
 
+// POST: /user/v1/verifyOtp
+export const verifyOtp = async (req: Request, res: Response) => {
+  const { userOtp, otpId } = req.body;
+
+  // Verify OTP
+  try {
+    // Find the OTP document in the database by its ID
+    const otp: OTPDocument | null = await OTP.findById(otpId);
+
+    // Check if the OTP document exists
+    if (!otp) {
+      return res.status(404).json({ message: "OTP not found" });
+    }
+
+    // Compare the user-provided OTP with the OTP from the database
+    const isVerified: boolean = await bcrypt.compare(userOtp, otp.otp);
+
+    if (!isVerified) {
+      return res.status(401).json({ message: "Incorrect OTP" });
+    }
+
+    // Set Email in the cookies
+    res.cookie("email", otp.email, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "none",
+    });
+    // Clear Cookie and delete the OTP from the database
+    res.clearCookie("otpId");
+    await OTP.deleteOne({ _id: otpId });
+
+    return res.status(200).json({ message: "Create a new Password" });
+  } catch (error) {
+    console.log(error);
+    res.status(500).send("Internal server error");
+  }
+};
+
+// GET: /user/v1/getUser
 export const getUser = async (req: Request, res: Response) => {
   const user: UserDocument = req.user;
 

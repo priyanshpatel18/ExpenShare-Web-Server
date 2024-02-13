@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import { JwtPayload } from "jsonwebtoken";
 import User, { UserDocument } from "../models/userModel";
-import { getToken } from "../service/webAuth";
+import { getToken } from "../service/auth";
 
 export default async function allowOnlyLoggedInUser(
   req: Request,

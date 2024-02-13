@@ -7,9 +7,9 @@ import mongoose from "mongoose";
 import cron from "node-cron";
 import path from "path";
 // File Imports
-import { mailRouter, userRouter } from "./routes/userRouter";
-import { clearExpiredSessions } from "./utils/sessionUtils";
-import appRouter from "./routes/userRouterV2";
+import appUserRouter from "./routes/androidUserRouter";
+import webUserRouter from "./routes/webUserRouter";
+import { clearExpiredOTPs } from "./utils/otpUtils";
 
 // Creating Backend Application
 const app: Express = express();
@@ -17,7 +17,13 @@ const app: Express = express();
 // Set Trust Proxy
 app.set("trust proxy", true);
 // Middlewares
-app.use(cors());
+app.use(
+  cors({
+    origin: "https://expenshare.vercel.app",
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true,
+  })
+);
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -26,17 +32,16 @@ app.set("views", path.resolve("./views"));
 
 // Routes
 app.use("/uploads", express.static("uploads"));
-app.use("/user/v1", userRouter);
-app.use("/user/v1", mailRouter);
-app.use("/user/v2", appRouter);
+app.use("/user/v1", webUserRouter);
+app.use("/user/v2", appUserRouter);
 
-// Session Cleanup
+// OTP Cleanup
 cron.schedule(
   "0 * * * *",
   async () => {
-    console.log("Running session cleanup job...");
+    console.log("Running otp cleanup job...");
     try {
-      await clearExpiredSessions();
+      await clearExpiredOTPs();
       console.log("Session cleanup completed.");
     } catch (error) {
       console.error("Error during session cleanup:", error);
