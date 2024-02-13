@@ -7,7 +7,6 @@ import mongoose from "mongoose";
 import cron from "node-cron";
 import path from "path";
 // File Imports
-import appUserRouter from "./routes/androidUserRouter";
 import webUserRouter from "./routes/webUserRouter";
 import { clearExpiredOTPs } from "./utils/otpUtils";
 
