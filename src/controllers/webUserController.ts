@@ -2,20 +2,28 @@ import bcrypt from "bcrypt";
 import { UploadApiResponse } from "cloudinary";
 import ejs from "ejs";
 import { Request, Response } from "express";
-import nodemailer from "nodemailer";
-import SMTPTransport from "nodemailer/lib/smtp-transport";
 import otpGenerator from "otp-generator";
 import path from "path";
 import OTP, { OTPDocument } from "../models/otpModel";
 import User, { UserDocument } from "../models/userModel";
-import { setToken } from "../service/auth";
+import { getToken, setToken, setUserData } from "../service/auth";
 import cloudinary from "../utils/cloudinary";
+import transporter from "../utils/sendMailUtils";
 
-// POST : /user/v1/register
+// POST : /user/register
 export const registerUser = async (req: Request, res: Response) => {
   try {
-    const { email, userName, password } = req.body;
-    const profilePicture = req.file?.path;
+    const { userData } = req.cookies;
+
+    const user = getToken(userData);
+
+    if (!user || typeof user === "string") {
+      // Additional type checking
+      return res.status(401).json({ message: "Internal Server Error" });
+    }
+
+    const { email, userName, profilePicture } = user;
+
     let profileUrl = "";
     let publicId = "";
 
@@ -30,27 +38,25 @@ export const registerUser = async (req: Request, res: Response) => {
       publicId = result.public_id;
     }
 
-    const user: UserDocument | null = await User.findOne({
-      $or: [{ email: email }, { userName: userName }],
-    });
-    // Check for unique Email
-    if (user?.email === email) {
-      return res.status(400).send("Email should be unique");
-    }
-    // Check for unique userName
-    if (user?.userName === userName) {
-      return res.status(400).send("Username should be unique");
-    }
-
-    // Create User if passed all checks
+    // Create User if
     User.create({
-      email,
-      userName,
+      email: email as string,
+      userName: userName as string,
       profilePicture: profileUrl,
       publicId,
-      password,
+      password: user.password as string,
     });
 
+    const token = setToken({
+      email: email as string,
+      userName: userName as string,
+    });
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "none",
+    });
+    res.clearCookie("userData");
     res.status(200).send("User registered successfully");
   } catch (error) {
     console.error(error);
@@ -58,7 +64,7 @@ export const registerUser = async (req: Request, res: Response) => {
   }
 };
 
-// POST: /user/v1/login
+// POST: /user/login
 export const loginUser = async (req: Request, res: Response) => {
   const { userNameOrEmail, password } = req.body;
 
@@ -96,29 +102,29 @@ export const loginUser = async (req: Request, res: Response) => {
   }
 };
 
-// POST: /user/v1/verifyEmail
-export const verifyEmail = async (req: Request, res: Response) => {
-  const { email } = req.body;
+// POST: /user/sendVerificationMail
+export const sendVerificationMail = async (req: Request, res: Response) => {
+  const { email, userName, password } = req.body;
+  const profilePicture = req.file?.path;
 
-  // Generate OTP and set it in the session
+  const user: UserDocument | null = await User.findOne({
+    $or: [{ email: email }, { userName: userName }],
+  });
+  // Check for unique Email
+  if (user?.email === email) {
+    return res.status(400).send("Email should be unique");
+  }
+  // Check for unique userName
+  if (user?.userName === userName) {
+    return res.status(400).send("Username should be unique");
+  }
+
+  // Generate OTP
   const otp: string = otpGenerator.generate(6, {
     lowerCaseAlphabets: false,
     upperCaseAlphabets: false,
     specialChars: false,
   });
-
-  // Configure Transporter
-  const transporter: nodemailer.Transporter<SMTPTransport.SentMessageInfo> =
-    nodemailer.createTransport({
-      service: "gmail",
-      host: "smtp.gmail.com",
-      port: 465,
-      secure: true,
-      auth: {
-        user: process.env.USER,
-        pass: process.env.PASS,
-      },
-    });
 
   // Render EJS Template
   const templatePath: string = path.resolve(
@@ -147,6 +153,19 @@ export const verifyEmail = async (req: Request, res: Response) => {
       email: email,
     });
 
+    // Set the Registration Data in Token
+    const userData = setUserData({
+      email,
+      userName,
+      password,
+      profilePicture,
+    });
+    res.cookie("userData", userData, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "none",
+    });
+
     // Set the OTP ID in the cookies
     res.cookie("otpId", otpDocument._id, {
       httpOnly: true,
@@ -160,7 +179,7 @@ export const verifyEmail = async (req: Request, res: Response) => {
   }
 };
 
-// POST: /user/v1/verifyOtp
+// POST: /user/verifyOtp
 export const verifyOtp = async (req: Request, res: Response) => {
   const { userOtp } = req.body;
   const { otpId } = req.cookies;
@@ -192,14 +211,14 @@ export const verifyOtp = async (req: Request, res: Response) => {
     res.clearCookie("otpId");
     await OTP.deleteOne({ _id: otpId });
 
-    return res.status(200).json({ message: "Create a new Password" });
+    return res.status(200);
   } catch (error) {
     console.log(error);
     res.status(500).send("Internal server error");
   }
 };
 
-// GET: /user/v1/getUser
+// GET: /user/getUser
 export const getUser = async (req: Request, res: Response) => {
   const user: UserDocument = req.user;
 

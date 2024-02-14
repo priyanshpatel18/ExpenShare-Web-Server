@@ -11,6 +11,6 @@ export const clearExpiredOTPs = async () => {
     console.log("Expired OTPs cleared successfully.");
     client.close();
   } catch (error) {
-    console.error("Error clearing expired sessions:", error);
+    console.error("Error clearing expired otps:", error);
   }
 };

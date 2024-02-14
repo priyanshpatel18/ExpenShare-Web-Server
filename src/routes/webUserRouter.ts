@@ -12,7 +12,7 @@ webUserRouter
     upload.single("profilePicture"),
     userController.registerUser
   )
-  .post("/verifyEmail", userController.verifyEmail)
+  .post("/sendVerificationMail", userController.sendVerificationMail)
   .post("/verifyOtp", userController.verifyOtp)
 
 export default webUserRouter;

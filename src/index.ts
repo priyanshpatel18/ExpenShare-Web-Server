@@ -37,9 +37,9 @@ cron.schedule(
     console.log("Running otp cleanup job...");
     try {
       await clearExpiredOTPs();
-      console.log("Session cleanup completed.");
+      console.log("OTP cleanup completed.");
     } catch (error) {
-      console.error("Error during session cleanup:", error);
+      console.error("Error during otp cleanup:", error);
     }
   },
   {
