@@ -13,6 +13,8 @@ webUserRouter
     userController.registerUser
   )
   .post("/sendVerificationMail", userController.sendVerificationMail)
+  .post("/sendMail", userController.sendMail)
   .post("/verifyOtp", userController.verifyOtp)
+  .post("/resetPassword", userController.resetPassword)
 
 export default webUserRouter;

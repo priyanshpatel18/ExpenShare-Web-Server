@@ -57,6 +57,7 @@ export const registerUser = async (req: Request, res: Response) => {
       sameSite: "none",
     });
     res.clearCookie("userData");
+    res.clearCookie("email");
     res.status(200).send("User registered successfully");
   } catch (error) {
     console.error(error);
@@ -227,5 +228,88 @@ export const getUser = async (req: Request, res: Response) => {
   } catch (error) {
     console.error(error);
     return res.status(500).send("Internal server error");
+  }
+};
+
+// POST : /user/sendMail
+export const sendMail = async (req: Request, res: Response) => {
+  const { email } = req.body;
+
+  const user = await User.findOne({ email });
+
+  if (!user) {
+    return res.status(400).send("Email doesn't exist");
+  }
+
+  // Generate OTP
+  const otp: string = otpGenerator.generate(6, {
+    lowerCaseAlphabets: false,
+    upperCaseAlphabets: false,
+    specialChars: false,
+  });
+
+  // Render EJS Template
+  const templatePath: string = path.resolve(
+    __dirname,
+    "../views/mailFormat.ejs"
+  );
+  const htmlContent: string = await ejs.renderFile(templatePath, { otp });
+
+  // Send Email
+  const mailOptions = {
+    from: String(process.env.USER),
+    to: email,
+    subject: "OTP Verification",
+    html: htmlContent,
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+
+    // Hash OTP and save it in the database
+    const salt = await bcrypt.genSalt(10);
+    const hashedOtp = await bcrypt.hash(otp, salt);
+
+    const otpDocument: OTPDocument = await OTP.create({
+      otp: hashedOtp,
+      email: email,
+    });
+
+    // Set the OTP ID in the cookies
+    res.cookie("otpId", otpDocument._id, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "none",
+    });
+    res.status(200).json({ message: "OTP Sent Successfully" });
+  } catch (error) {
+    console.log(error);
+    res.status(500).send("Internal Server Error");
+  }
+};
+
+// POST : /user/resetPassword
+export const resetPassword = async (req: Request, res: Response) => {
+  const { password } = req.body;
+  const { email } = req.cookies;
+
+  if (!email) {
+    return res.status(400).send("Internal Server Error");
+  }
+
+  try {
+    const user: UserDocument | null = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(400).send("User not Found");
+    }
+
+    user.password = password;
+    user.save();
+    res.clearCookie("email");
+    res.status(200).send("User registered successfully");
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Internal server error");
   }
 };
