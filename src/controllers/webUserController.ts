@@ -212,7 +212,7 @@ export const verifyOtp = async (req: Request, res: Response) => {
     res.clearCookie("otpId");
     await OTP.deleteOne({ _id: otpId });
 
-    return res.status(200);
+    return res.sendStatus(200);
   } catch (error) {
     console.log(error);
     res.status(500).send("Internal server error");

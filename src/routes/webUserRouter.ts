@@ -12,9 +12,13 @@ webUserRouter
     upload.single("profilePicture"),
     userController.registerUser
   )
-  .post("/sendVerificationMail", userController.sendVerificationMail)
+  .post(
+    "/sendVerificationMail",
+    upload.single("profilePicture"),
+    userController.sendVerificationMail
+  )
   .post("/sendMail", userController.sendMail)
   .post("/verifyOtp", userController.verifyOtp)
-  .post("/resetPassword", userController.resetPassword)
+  .post("/resetPassword", userController.resetPassword);
 
 export default webUserRouter;
