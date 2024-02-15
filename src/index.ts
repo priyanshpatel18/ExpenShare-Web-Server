@@ -8,7 +8,7 @@ import cron from "node-cron";
 import path from "path";
 // File Imports
 import webUserRouter from "./routes/webUserRouter";
-import { clearExpiredOTPs } from "./utils/otpUtils";
+import clearExpiredCollections from "./utils/cronUtils";
 
 // Creating Backend Application
 const app: Express = express();
@@ -34,12 +34,12 @@ app.use("/user", webUserRouter);
 cron.schedule(
   "0 * * * *",
   async () => {
-    console.log("Running otp cleanup job...");
+    console.log("Running Database cleanup job...");
     try {
-      await clearExpiredOTPs();
-      console.log("OTP cleanup completed.");
+      await clearExpiredCollections();
+      console.log("Database cleanup completed.");
     } catch (error) {
-      console.error("Error during otp cleanup:", error);
+      console.error("Error during database cleanup:", error);
     }
   },
   {

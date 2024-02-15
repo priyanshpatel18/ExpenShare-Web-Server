@@ -23,8 +23,8 @@ export default async function allowOnlyLoggedInUser(
   }
 
   // Find User from the decoded Token using _id
-  const userId: string = decodedToken._id;
-  const user: UserDocument | null = await User.findById({ userId });
+  const email: string = decodedToken.email;
+  const user: UserDocument | null = await User.findOne({ email });
   if (!user) {
     return res.status(401).send("You need to Login First");
   }
