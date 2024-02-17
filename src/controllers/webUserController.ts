@@ -7,7 +7,7 @@ import path from "path";
 import OTP, { OTPDocument } from "../models/otpModel";
 import UserData, { UserDataDocument } from "../models/userDataModel";
 import User, { UserDocument } from "../models/userModel";
-import { setToken, setUserData } from "../service/auth";
+import { setToken } from "../service/auth";
 import cloudinary from "../utils/cloudinary";
 import transporter from "../utils/sendMailUtils";
 
@@ -22,7 +22,7 @@ export const registerUser = async (req: Request, res: Response) => {
     });
 
     if (!userData) {
-      res.status(401).json({ message: "User Data Expired" });
+      return res.status(401).json({ message: "User Data Expired" });
     }
 
     // Destructure the Decoded User
@@ -163,12 +163,12 @@ export const sendVerificationMail = async (req: Request, res: Response) => {
     });
 
     // Set the Registration Data in Token
-    const userData: string = setUserData({
+    const userData = {
       email,
       userName,
       password,
       profilePicture,
-    });
+    };
     const UserDataDocument: UserDataDocument = await UserData.create(userData);
 
     // Set the User Data Id in the Cookies
@@ -309,17 +309,5 @@ export const resetPassword = async (req: Request, res: Response) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Internal server error" });
-  }
-};
-
-// GET: /user/getUser
-export const getUser = async (req: Request, res: Response) => {
-  const user: UserDocument = req.user;
-
-  try {
-    return res.status(200).json({ user });
-  } catch (error) {
-    console.error(error);
-    return res.status(500).send("Internal server error");
   }
 };

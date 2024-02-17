@@ -1,3 +1,5 @@
 node_modules
 public
 .env
+/userAuth.ts
+/getUser.ts

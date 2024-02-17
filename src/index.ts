@@ -30,7 +30,7 @@ app.set("views", path.resolve("./views"));
 // Routes
 app.use("/user", webUserRouter);
 
-// OTP Cleanup
+// Database Cleanup
 cron.schedule(
   "0 * * * *",
   async () => {
