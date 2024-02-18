@@ -1,6 +1,7 @@
 import { Router } from "express";
 import * as userController from "../controllers/webUserController";
 import upload from "../middlewares/multer";
+import allowOnlyLoggedInUser from "../middlewares/userAuth";
 const webUserRouter: Router = Router();
 
 webUserRouter
@@ -17,6 +18,7 @@ webUserRouter
   )
   .post("/sendMail", userController.sendMail)
   .post("/verifyOtp", userController.verifyOtp)
-  .post("/resetPassword", userController.resetPassword);
+  .post("/resetPassword", userController.resetPassword)
+  .get("/getUser", allowOnlyLoggedInUser ,userController.getUser);
 
 export default webUserRouter;

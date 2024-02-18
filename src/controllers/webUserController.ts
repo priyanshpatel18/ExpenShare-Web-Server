@@ -9,7 +9,8 @@ import UserData, { UserDataDocument } from "../models/userDataModel";
 import User, { UserDocument } from "../models/userModel";
 import { setToken } from "../service/auth";
 import cloudinary from "../utils/cloudinary";
-import transporter from "../utils/sendMailUtils";
+import nodemailer from "nodemailer";
+import SMTPTransport from "nodemailer/lib/smtp-transport";
 
 // POST : /user/register
 export const registerUser = async (req: Request, res: Response) => {
@@ -150,6 +151,18 @@ export const sendVerificationMail = async (req: Request, res: Response) => {
     html: htmlContent,
   };
 
+  const transporter: nodemailer.Transporter<SMTPTransport.SentMessageInfo> =
+    nodemailer.createTransport({
+      service: "gmail",
+      host: String(process.env.SMTP_HOST),
+      port: Number(process.env.SMTP_PORT),
+      secure: true,
+      auth: {
+        user: process.env.USER,
+        pass: process.env.PASS,
+      },
+    });
+
   try {
     await transporter.sendMail(mailOptions);
 
@@ -261,6 +274,18 @@ export const sendMail = async (req: Request, res: Response) => {
     html: htmlContent,
   };
 
+  const transporter: nodemailer.Transporter<SMTPTransport.SentMessageInfo> =
+    nodemailer.createTransport({
+      service: "gmail",
+      host: String(process.env.SMTP_HOST),
+      port: Number(process.env.SMTP_PORT),
+      secure: true,
+      auth: {
+        user: process.env.USER,
+        pass: process.env.PASS,
+      },
+    });
+
   try {
     await transporter.sendMail(mailOptions);
 
@@ -309,5 +334,17 @@ export const resetPassword = async (req: Request, res: Response) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+// GET: /user/getUser
+export const getUser = (req: Request, res: Response) => {
+  const user: UserDocument = req.user;
+
+  try {
+    return res.status(200).json({ user });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).send("Internal server error");
   }
 };
