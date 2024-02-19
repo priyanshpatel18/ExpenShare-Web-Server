@@ -16,7 +16,7 @@ const app: Express = express();
 // Middlewares
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: "https://expenshare.vercel.app",
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
   })
@@ -58,7 +58,7 @@ cron.schedule(
 );
 
 // DB Connection
-const PORT: number = 5555 | Number(process.env.PORT);
+const PORT: number = 8080 | Number(process.env.PORT);
 const DB_URL: string = String(process.env.DB_URL);
 
 mongoose
