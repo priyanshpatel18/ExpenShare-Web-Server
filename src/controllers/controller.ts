@@ -78,7 +78,7 @@ export const registerUser = async (req: Request, res: Response) => {
     // Get userData from Cookies
     const { userDataId } = req.cookies;
 
-    const userData: UserDataDocument | null = await UserData.findOne({
+    const userData: UserDataDocument | null = await UserData.findById({
       _id: userDataId,
     });
 
