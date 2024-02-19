@@ -2,7 +2,7 @@ import bcrypt from "bcrypt";
 import { UploadApiResponse, v2 as cloudinary } from "cloudinary";
 import ejs from "ejs";
 import { Request, Response } from "express";
-import jwt, { JwtPayload } from "jsonwebtoken";
+import jwt from "jsonwebtoken";
 import { Types } from "mongoose";
 import nodemailer from "nodemailer";
 import SMTPTransport from "nodemailer/lib/smtp-transport";
@@ -402,7 +402,16 @@ export const getUser = (req: Request, res: Response) => {
   const user: UserDocument = req.user;
 
   try {
-    return res.status(200).json({ user });
+    const userObject = {
+      email: user.email,
+      userName: user.userName,
+      profilePicture: user.profilePicture,
+      totalBalance: user.totalBalance,
+      totalIncome: user.totalIncome,
+      totalExpense: user.totalExpense,
+    };
+
+    return res.status(200).json({ userObject });
   } catch (error) {
     console.error(error);
     return res.status(500).send("Internal server error");

@@ -30,7 +30,10 @@ async function allowOnlyLoggedInUser(
 
   // Find User from the decoded Token using _id
   const email: string = decodedToken.email;
-  const user: UserDocument | null = await User.findOne({ email });
+  const user: UserDocument | null = await User.findOne(
+    { email },
+    { password: 0 }
+  );
   if (!user) {
     return res.status(401).send("You need to Login First");
   }
@@ -72,7 +75,7 @@ userRouter
   .get("/getUser", allowOnlyLoggedInUser, controller.getUser);
 
 transactionRouter
-  .post("/add", controller.addTransaction)
+  .post("/add", allowOnlyLoggedInUser, controller.addTransaction)
   .get("/getAll", allowOnlyLoggedInUser, controller.getAllTransactions);
 
 export { userRouter, transactionRouter };
