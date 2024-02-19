@@ -78,8 +78,8 @@ export const registerUser = async (req: Request, res: Response) => {
     // Get userData from Cookies
     const { userDataId } = req.cookies;
 
-    const userData: UserDataDocument | null = await UserData.findById({
-      userDataId,
+    const userData: UserDataDocument | null = await UserData.findOne({
+      _id: userDataId,
     });
 
     if (!userData) {
@@ -242,7 +242,9 @@ export const sendVerificationMail = async (req: Request, res: Response) => {
       password: password as string,
       profilePicture: profilePicture as string,
     };
-    const UserDataDocument: UserDataDocument = await UserData.create(userData);
+    const UserDataDocument: UserDataDocument = await UserData.create({
+      userData,
+    });
 
     // Set the User Data Id in the Cookies
     res.cookie("userDataId", UserDataDocument._id, {
