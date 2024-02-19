@@ -237,10 +237,10 @@ export const sendVerificationMail = async (req: Request, res: Response) => {
 
     // Set the Registration Data in Token
     const userData = {
-      email,
-      userName,
-      password,
-      profilePicture,
+      email: email as string,
+      userName: userName as string,
+      password: password as string,
+      profilePicture: profilePicture as string,
     };
     const UserDataDocument: UserDataDocument = await UserData.create(userData);
 
