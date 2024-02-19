@@ -1,16 +1,76 @@
 import bcrypt from "bcrypt";
-import { UploadApiResponse } from "cloudinary";
+import { UploadApiResponse, v2 as cloudinary } from "cloudinary";
 import ejs from "ejs";
 import { Request, Response } from "express";
-import otpGenerator from "otp-generator";
-import path from "path";
-import OTP, { OTPDocument } from "../models/otpModel";
-import UserData, { UserDataDocument } from "../models/userDataModel";
-import User, { UserDocument } from "../models/userModel";
-import { setToken } from "../service/auth";
-import cloudinary from "../utils/cloudinary";
+import jwt, { JwtPayload } from "jsonwebtoken";
+import { Types } from "mongoose";
 import nodemailer from "nodemailer";
 import SMTPTransport from "nodemailer/lib/smtp-transport";
+import otpGenerator from "otp-generator";
+import path from "path";
+import {
+  History,
+  MonthlyHistoryDocument,
+  OTP,
+  OTPDocument,
+  Transaction,
+  TransactionDocument,
+  User,
+  UserData,
+  UserDataDocument,
+  UserDocument,
+} from "../models/models";
+
+interface User {
+  email: string;
+  userName: string;
+}
+
+interface UserData {
+  email: string;
+  userName: string;
+  password: string;
+  profilePicture?: string | undefined;
+}
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET_KEY,
+});
+
+const setToken = (user: User) => {
+  return jwt.sign(
+    {
+      email: user.email,
+      userName: user.userName,
+    },
+    String(process.env.SECRET_KEY),
+    {
+      expiresIn: "7d",
+    }
+  );
+};
+
+export const getToken = (token: string) => {
+  if (!token) return null;
+  return jwt.verify(token, String(process.env.SECRET_KEY));
+};
+
+export const setUserData = (user: UserData) => {
+  return jwt.sign(
+    {
+      email: user.email,
+      userName: user.userName,
+      password: user.password,
+      profilePicuture: user.profilePicture,
+    },
+    String(process.env.SECRET_KEY),
+    {
+      expiresIn: "1h",
+    }
+  );
+};
 
 // POST : /user/register
 export const registerUser = async (req: Request, res: Response) => {
@@ -346,5 +406,112 @@ export const getUser = (req: Request, res: Response) => {
   } catch (error) {
     console.error(error);
     return res.status(500).send("Internal server error");
+  }
+};
+
+// POST: /transaction/add
+export const addTransaction = async (req: Request, res: Response) => {
+  const { incomeFlag, amount, category, title, notes, transactionDate } =
+    req.body;
+  const invoice: string | undefined = req.file?.path;
+  const user = req.user;
+
+  if (!user) {
+    return res.status(401).json({ message: "User not Found" });
+  }
+
+  let invoiceUrl: string = "";
+  let publicId: string = "";
+
+  if (invoice) {
+    const result = await cloudinary.uploader.upload(invoice, {
+      folder: "invoices",
+    });
+
+    invoiceUrl = result.secure_url;
+    publicId = result.public_id;
+  }
+
+  try {
+    const transactionObject = {
+      transactionAmount: String(amount),
+      category: String(category),
+      transactionTitle: String(title),
+      notes: String(notes),
+      invoiceUrl,
+      publicId,
+      transactionDate: String(transactionDate),
+      type: incomeFlag,
+      createdBy: new Types.ObjectId(user._id),
+    };
+
+    const transactionDocument: TransactionDocument = await Transaction.create(
+      transactionObject
+    );
+
+    const transactionId = new Types.ObjectId(transactionDocument._id);
+
+    const dateForm = new Date(transactionDate);
+
+    const transactionMonth = dateForm.getMonth();
+    const transactionYear = dateForm.getFullYear();
+
+    const monthlyHistory: MonthlyHistoryDocument | null =
+      await History.findOneAndUpdate(
+        {
+          user: user._id,
+          month: transactionMonth,
+          year: transactionYear,
+        },
+        {
+          $inc: {
+            income: incomeFlag === "income" ? Number(amount) : 0,
+            expense: incomeFlag === "expense" ? Number(amount) : 0,
+          },
+        },
+        { upsert: true, new: true }
+      );
+
+    if (monthlyHistory) {
+      monthlyHistory.transactionIds.push(transactionId);
+      monthlyHistory.monthlyBalance =
+        monthlyHistory.income - monthlyHistory.expense;
+      await monthlyHistory.save();
+    }
+
+    if (incomeFlag === "income") {
+      user.incomes.push(transactionId);
+      user.totalBalance += Number(amount);
+      user.totalIncome += Number(amount);
+      // Add to History
+    } else if (incomeFlag === "expense") {
+      user.expenses.push(transactionId);
+      user.totalBalance -= Number(amount);
+      user.totalExpense += Number(amount);
+    }
+    await user.save();
+
+    return res.sendStatus(200);
+  } catch (error) {
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+// GET: /transaction/getAll
+export const getAllTransactions = async (req: Request, res: Response) => {
+  const user = req.user;
+
+  try {
+    if (!user) {
+      return res.status(401).json({ message: "User not Found" });
+    }
+
+    const transactions: TransactionDocument[] | null = await Transaction.find({
+      createdBy: user._id,
+    });
+
+    return res.status(200).json({ transactions });
+  } catch (error) {
+    return res.status(500).json({ message: "Internal Server Error" });
   }
 };

@@ -3,12 +3,12 @@ import cookieParser from "cookie-parser";
 import cors from "cors";
 import "dotenv/config";
 import express, { Express } from "express";
+import { MongoClient } from "mongodb";
 import mongoose from "mongoose";
 import cron from "node-cron";
 import path from "path";
 // File Imports
-import webUserRouter from "./routes/webUserRouter";
-import clearExpiredCollections from "./utils/cronUtils";
+import { userRouter, transactionRouter } from "./routes/router";
 
 // Creating Backend Application
 const app: Express = express();
@@ -28,7 +28,8 @@ app.set("view-engine", "ejs");
 app.set("views", path.resolve("./views"));
 
 // Routes
-app.use("/user", webUserRouter);
+app.use("/user", userRouter);
+app.use("/transaction", transactionRouter);
 
 // Database Cleanup
 cron.schedule(
@@ -36,10 +37,18 @@ cron.schedule(
   async () => {
     console.log("Running Database cleanup job...");
     try {
-      await clearExpiredCollections();
-      console.log("Database cleanup completed.");
+      const client = await MongoClient.connect(process.env.DB_URL!);
+      const db = client.db();
+      const otpCollection = db.collection("otps");
+      const userDataCollection = db.collection("userdatas");
+      const now = new Date();
+
+      await otpCollection.deleteMany({ expires: { $lt: now } });
+      await userDataCollection.deleteMany({ expires: { $lt: now } });
+      console.log("Expired Colections cleared successfully.");
+      client.close();
     } catch (error) {
-      console.error("Error during database cleanup:", error);
+      console.error("Error clearing Expired Collection:", error);
     }
   },
   {
