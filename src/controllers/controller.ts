@@ -242,9 +242,7 @@ export const sendVerificationMail = async (req: Request, res: Response) => {
       password: password as string,
       profilePicture: profilePicture as string,
     };
-    const UserDataDocument: UserDataDocument = await UserData.create({
-      userData,
-    });
+    const UserDataDocument: UserDataDocument = await UserData.create(userData);
 
     // Set the User Data Id in the Cookies
     res.cookie("userDataId", UserDataDocument._id, {
@@ -422,7 +420,7 @@ export const getUser = (req: Request, res: Response) => {
 
 // POST: /transaction/add
 export const addTransaction = async (req: Request, res: Response) => {
-  const { incomeFlag, amount, category, title, notes, transactionDate } =
+  const { type, transactionAmount, category, title, notes, transactionDate } =
     req.body;
   const invoice: string | undefined = req.file?.path;
   const user = req.user;
@@ -445,14 +443,14 @@ export const addTransaction = async (req: Request, res: Response) => {
 
   try {
     const transactionObject = {
-      transactionAmount: String(amount),
+      transactiontransactionAmount: String(transactionAmount),
       category: String(category),
       transactionTitle: String(title),
       notes: String(notes),
       invoiceUrl,
       publicId,
       transactionDate: String(transactionDate),
-      type: incomeFlag,
+      type: type,
       createdBy: new Types.ObjectId(user._id),
     };
 
@@ -476,8 +474,8 @@ export const addTransaction = async (req: Request, res: Response) => {
         },
         {
           $inc: {
-            income: incomeFlag === "income" ? Number(amount) : 0,
-            expense: incomeFlag === "expense" ? Number(amount) : 0,
+            income: type === "income" ? Number(transactionAmount) : 0,
+            expense: type === "expense" ? Number(transactionAmount) : 0,
           },
         },
         { upsert: true, new: true }
@@ -490,15 +488,15 @@ export const addTransaction = async (req: Request, res: Response) => {
       await monthlyHistory.save();
     }
 
-    if (incomeFlag === "income") {
+    if (type === "income") {
       user.incomes.push(transactionId);
-      user.totalBalance += Number(amount);
-      user.totalIncome += Number(amount);
+      user.totalBalance += Number(transactionAmount);
+      user.totalIncome += Number(transactionAmount);
       // Add to History
-    } else if (incomeFlag === "expense") {
+    } else if (type === "expense") {
       user.expenses.push(transactionId);
-      user.totalBalance -= Number(amount);
-      user.totalExpense += Number(amount);
+      user.totalBalance -= Number(transactionAmount);
+      user.totalExpense += Number(transactionAmount);
     }
     await user.save();
 

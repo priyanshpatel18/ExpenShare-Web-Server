@@ -15,11 +15,11 @@ const app: Express = express();
 
 // Middlewares
 app.use(
-  cors({
-    origin: "https://expenshare.vercel.app",
-    methods: ["GET", "POST", "PUT", "DELETE"],
-    credentials: true,
-  })
+	cors({
+		origin: "https://expenshare.vercel.app",
+		methods: ["GET", "POST", "PUT", "DELETE"],
+		credentials: true,
+	}),
 );
 app.use(cookieParser());
 app.use(express.json());
@@ -66,8 +66,8 @@ mongoose
   .then(() => {
     console.log("Database Connected");
     app.listen(PORT, () => {
-      console.log("Server Started");
-    });
+		console.log("Server Started");
+	});
   })
   .catch((err) => {
     console.log(err);
