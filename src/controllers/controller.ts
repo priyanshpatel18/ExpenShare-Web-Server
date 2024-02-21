@@ -420,10 +420,10 @@ export const getUser = (req: Request, res: Response) => {
 
 // POST: /transaction/add
 export const addTransaction = async (req: Request, res: Response) => {
-  const { type, transactionAmount, category, title, notes, transactionDate } =
+  const { type, transactionAmount, category, transactionTitle, notes, transactionDate } =
     req.body;
   const invoice: string | undefined = req.file?.path;
-  const user = req.user;
+  const user = req.user;  
 
   if (!user) {
     return res.status(401).json({ message: "User not Found" });
@@ -443,9 +443,9 @@ export const addTransaction = async (req: Request, res: Response) => {
 
   try {
     const transactionObject = {
-      transactiontransactionAmount: String(transactionAmount),
+      transactionAmount: String(transactionAmount),
       category: String(category),
-      transactionTitle: String(title),
+      transactionTitle: String(transactionTitle),
       notes: String(notes),
       invoiceUrl,
       publicId,
@@ -501,7 +501,7 @@ export const addTransaction = async (req: Request, res: Response) => {
     await user.save();
 
     return res.sendStatus(200);
-  } catch (error) {
+  } catch (error) {    
     return res.status(500).json({ message: "Internal Server Error" });
   }
 };
