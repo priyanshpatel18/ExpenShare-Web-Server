@@ -16,7 +16,7 @@ const app: Express = express();
 // Middlewares
 app.use(
 	cors({
-		origin: "https://expenshare.vercel.app",
+		origin: "https://expenshare.vercel.app" |  "http://localhost:5173/",
 		methods: ["GET", "POST", "PUT", "DELETE"],
 		credentials: true,
 	}),
