@@ -55,6 +55,7 @@ const upload: multer.Multer = multer({ storage: storage });
 
 // Router
 userRouter
+	.get("/checkAuth", allowOnlyLoggedInUser, controller.checkAuth)
 	.get("/getUser", allowOnlyLoggedInUser, controller.getUser)
 	.post("/login", controller.loginUser)
 	.post("/register", upload.single("profilePicture"), controller.registerUser)
