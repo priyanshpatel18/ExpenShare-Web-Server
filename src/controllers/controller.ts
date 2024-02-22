@@ -392,6 +392,11 @@ export const resetPassword = async (req: Request, res: Response) => {
 	}
 };
 
+// GET: /user/checkAuth
+export const checkAuth = (req: Request, res: Response) => {
+	res.sendStatus(200);
+}
+
 // GET: /user/getUser
 export const getUser = (req: Request, res: Response) => {
 	const user: UserDocument = req.user;
@@ -418,9 +423,6 @@ export const addTransaction = async (req: Request, res: Response) => {
 	const { type, transactionAmount, category, transactionTitle, notes, transactionDate } = req.body;
 	const invoice: string | undefined = req.file?.path;
 	const user = req.user;
-
-	console.log(req.body);
-	console.log(invoice);
 
 	if (!user) {
 		return res.status(401).json({ message: "User not Found" });
@@ -521,7 +523,11 @@ export const getAllTransactions = async (req: Request, res: Response) => {
 // POST : /user/logout
 export const logoutUser = async (req: Request, res: Response) => {
 	try {
-		res.clearCookie("token");
+		res.clearCookie("token", {
+			httpOnly: true,
+			secure: true,
+			sameSite: "none",
+		});
 		return res.status(200).json({ message: "Logged out" });
 	} catch (error) {
 		return res.status(500).json({ message: "Internal Server Error" });
