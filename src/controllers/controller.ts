@@ -128,9 +128,9 @@ export const registerUser = async (req: Request, res: Response) => {
 			userName: userName as string,
 		});
 		res.cookie("token", token, {
-			// httpOnly: true,
-			// secure: true,
-			// sameSite: "none",
+			httpOnly: true,
+			secure: true,
+			sameSite: "none",
 		});
 		// Clear userDataId & email from cookies
 		res.clearCookie("userDataId");
@@ -168,9 +168,9 @@ export const loginUser = async (req: Request, res: Response) => {
 			// Set Token in Cookies if Password is correct
 			const token: string = setToken(user);
 			res.cookie("token", token, {
-				// httpOnly: true,
-				// secure: true,
-				// sameSite: "none",
+				httpOnly: true,
+				secure: true,
+				sameSite: "none",
 			});
 			res.status(201).json({ message: "Login Successfully" });
 		}
@@ -250,15 +250,15 @@ export const sendVerificationMail = async (req: Request, res: Response) => {
 
 		// Set the User Data Id in the Cookies
 		res.cookie("userDataId", UserDataDocument._id, {
-			// httpOnly: true,
-			// secure: true,
-			// sameSite: "none",
+			httpOnly: true,
+			secure: true,
+			sameSite: "none",
 		});
 		// Set the OTP ID in the cookies
 		res.cookie("otpId", otpDocument._id, {
-			// httpOnly: true,
-			// secure: true,
-			// sameSite: "none",
+			httpOnly: true,
+			secure: true,
+			sameSite: "none",
 		});
 		res.status(200).json({ message: "OTP Sent Successfully" });
 	} catch (error) {
@@ -291,9 +291,9 @@ export const verifyOtp = async (req: Request, res: Response) => {
 
 		// Set Email in the cookies
 		res.cookie("email", otp.email, {
-			// httpOnly: true,
-			// secure: true,
-			// sameSite: "none",
+			httpOnly: true,
+			secure: true,
+			sameSite: "none",
 		});
 		// Clear Cookie and delete the OTP from the database
 		res.clearCookie("otpId");
@@ -360,9 +360,9 @@ export const sendMail = async (req: Request, res: Response) => {
 
 		// Set the OTP ID in the cookies
 		res.cookie("otpId", otpDocument._id, {
-			// httpOnly: true,
-			// secure: true,
-			// sameSite: "none",
+			httpOnly: true,
+			secure: true,
+			sameSite: "none",
 		});
 		res.status(200).json({ message: "OTP Sent Successfully" });
 	} catch (error) {
@@ -534,9 +534,9 @@ export const getAllTransactions = async (req: Request, res: Response) => {
 export const logoutUser = async (req: Request, res: Response) => {
 	try {
 		res.clearCookie("token", {
-			// httpOnly: true,
-			// secure: true,
-			// sameSite: "none",
+			httpOnly: true,
+			secure: true,
+			sameSite: "none",
 		});
 		return res.status(200).json({ message: "Logged out" });
 	} catch (error) {
