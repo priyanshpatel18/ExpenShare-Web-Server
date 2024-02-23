@@ -96,7 +96,10 @@ export const registerUser = async (req: Request, res: Response) => {
 		}
 
 		// Destructure the Decoded User
-		const { email, userName, password, profilePicture } = userData!;
+		let { email, userName, password, profilePicture } = userData!;
+
+		email = email.toLowerCase();
+		userName = userName.toLowerCase();
 
 		// Upload Profile Picture if exist
 		let profileUrl = "";
@@ -142,7 +145,9 @@ export const registerUser = async (req: Request, res: Response) => {
 
 // POST: /user/login
 export const loginUser = async (req: Request, res: Response) => {
-	const { userNameOrEmail, password } = req.body;
+	let { userNameOrEmail, password } = req.body;
+
+	userNameOrEmail = userNameOrEmail.toLowerCase();
 
 	try {
 		const user: UserDocument | null = await User.findOne({
@@ -369,7 +374,12 @@ export const sendMail = async (req: Request, res: Response) => {
 // POST : /user/resetPassword
 export const resetPassword = async (req: Request, res: Response) => {
 	const { password } = req.body;
-	const { email } = req.cookies;
+	let { email } = req.cookies;
+
+	if (!email && req.cookies.token) {
+		const decoded = jwt.decode(req.cookies.token) as JwtPayload;
+		email = decoded?.email;
+	}
 
 	if (!email) {
 		return res.status(400).json({ message: "Internal Server Error" });
@@ -385,7 +395,7 @@ export const resetPassword = async (req: Request, res: Response) => {
 		user.password = password;
 		user.save();
 		res.clearCookie("email");
-		res.status(200).json({ message: "User registered successfully" });
+		res.status(200).json({ message: "Password updated" });
 	} catch (error) {
 		console.error(error);
 		res.status(500).json({ message: "Internal server error" });
@@ -395,7 +405,7 @@ export const resetPassword = async (req: Request, res: Response) => {
 // GET: /user/checkAuth
 export const checkAuth = (req: Request, res: Response) => {
 	res.sendStatus(200);
-}
+};
 
 // GET: /user/getUser
 export const getUser = (req: Request, res: Response) => {
@@ -443,7 +453,7 @@ export const addTransaction = async (req: Request, res: Response) => {
 	try {
 		const transactionObject = {
 			transactionAmount: String(transactionAmount),
-			category: String(category),
+			category: String(category).toLocaleUpperCase(),
 			transactionTitle: String(transactionTitle),
 			notes: String(notes),
 			invoiceUrl,
@@ -586,9 +596,12 @@ export const updateUser = async (req: Request, res: Response) => {
 // DELETE : user/delete
 export const deleteUser = async (req: Request, res: Response) => {
 	const { email } = req.user;
+	const user = req.user as UserDocument;
 
 	try {
 		const deletedUser = await User.findOneAndDelete({ email });
+		await Transaction.deleteMany({ createdBy: user._id });
+		await History.deleteMany({ user: user._id });
 
 		if (!deletedUser) {
 			return res.status(404).json({ message: "User not found" });
