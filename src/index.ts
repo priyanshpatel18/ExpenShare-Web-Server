@@ -16,7 +16,7 @@ const app: Express = express();
 // Middlewares
 app.use(
 	cors({
-		origin: "https://expenshare.vercel.app",
+		origin: ["https://expenshare.vercel.app", "http://192.168.100.18:5173"],
 		methods: ["GET", "POST", "PUT", "DELETE"],
 		credentials: true,
 	}),
@@ -65,7 +65,7 @@ mongoose
   .connect(DB_URL)
   .then(() => {
     console.log("Database Connected");
-    app.listen(PORT, () => {
+    app.listen(PORT, "192.168.100.18", () => {
 		console.log("Server Started");
 	});
   })

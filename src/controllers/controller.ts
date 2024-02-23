@@ -96,7 +96,10 @@ export const registerUser = async (req: Request, res: Response) => {
 		}
 
 		// Destructure the Decoded User
-		const { email, userName, password, profilePicture } = userData!;
+		let { email, userName, password, profilePicture } = userData!;
+
+		email = email.toLowerCase();
+		userName = userName.toLowerCase();
 
 		// Upload Profile Picture if exist
 		let profileUrl = "";
@@ -125,9 +128,9 @@ export const registerUser = async (req: Request, res: Response) => {
 			userName: userName as string,
 		});
 		res.cookie("token", token, {
-			httpOnly: true,
-			secure: true,
-			sameSite: "none",
+			// httpOnly: true,
+			// secure: true,
+			// sameSite: "none",
 		});
 		// Clear userDataId & email from cookies
 		res.clearCookie("userDataId");
@@ -142,7 +145,9 @@ export const registerUser = async (req: Request, res: Response) => {
 
 // POST: /user/login
 export const loginUser = async (req: Request, res: Response) => {
-	const { userNameOrEmail, password } = req.body;
+	let { userNameOrEmail, password } = req.body;
+
+	userNameOrEmail = userNameOrEmail.toLowerCase();
 
 	try {
 		const user: UserDocument | null = await User.findOne({
@@ -163,9 +168,9 @@ export const loginUser = async (req: Request, res: Response) => {
 			// Set Token in Cookies if Password is correct
 			const token: string = setToken(user);
 			res.cookie("token", token, {
-				httpOnly: true,
-				secure: true,
-				sameSite: "none",
+				// httpOnly: true,
+				// secure: true,
+				// sameSite: "none",
 			});
 			res.status(201).json({ message: "Login Successfully" });
 		}
@@ -245,15 +250,15 @@ export const sendVerificationMail = async (req: Request, res: Response) => {
 
 		// Set the User Data Id in the Cookies
 		res.cookie("userDataId", UserDataDocument._id, {
-			httpOnly: true,
-			secure: true,
-			sameSite: "none",
+			// httpOnly: true,
+			// secure: true,
+			// sameSite: "none",
 		});
 		// Set the OTP ID in the cookies
 		res.cookie("otpId", otpDocument._id, {
-			httpOnly: true,
-			secure: true,
-			sameSite: "none",
+			// httpOnly: true,
+			// secure: true,
+			// sameSite: "none",
 		});
 		res.status(200).json({ message: "OTP Sent Successfully" });
 	} catch (error) {
@@ -286,9 +291,9 @@ export const verifyOtp = async (req: Request, res: Response) => {
 
 		// Set Email in the cookies
 		res.cookie("email", otp.email, {
-			httpOnly: true,
-			secure: true,
-			sameSite: "none",
+			// httpOnly: true,
+			// secure: true,
+			// sameSite: "none",
 		});
 		// Clear Cookie and delete the OTP from the database
 		res.clearCookie("otpId");
@@ -355,9 +360,9 @@ export const sendMail = async (req: Request, res: Response) => {
 
 		// Set the OTP ID in the cookies
 		res.cookie("otpId", otpDocument._id, {
-			httpOnly: true,
-			secure: true,
-			sameSite: "none",
+			// httpOnly: true,
+			// secure: true,
+			// sameSite: "none",
 		});
 		res.status(200).json({ message: "OTP Sent Successfully" });
 	} catch (error) {
@@ -369,7 +374,12 @@ export const sendMail = async (req: Request, res: Response) => {
 // POST : /user/resetPassword
 export const resetPassword = async (req: Request, res: Response) => {
 	const { password } = req.body;
-	const { email } = req.cookies;
+	let { email } = req.cookies;
+
+	if (!email && req.cookies.token) {
+		const decoded = jwt.decode(req.cookies.token) as JwtPayload;
+		email = decoded?.email;
+	}
 
 	if (!email) {
 		return res.status(400).json({ message: "Internal Server Error" });
@@ -385,7 +395,7 @@ export const resetPassword = async (req: Request, res: Response) => {
 		user.password = password;
 		user.save();
 		res.clearCookie("email");
-		res.status(200).json({ message: "User registered successfully" });
+		res.status(200).json({ message: "Password updated" });
 	} catch (error) {
 		console.error(error);
 		res.status(500).json({ message: "Internal server error" });
@@ -395,7 +405,7 @@ export const resetPassword = async (req: Request, res: Response) => {
 // GET: /user/checkAuth
 export const checkAuth = (req: Request, res: Response) => {
 	res.sendStatus(200);
-}
+};
 
 // GET: /user/getUser
 export const getUser = (req: Request, res: Response) => {
@@ -443,7 +453,7 @@ export const addTransaction = async (req: Request, res: Response) => {
 	try {
 		const transactionObject = {
 			transactionAmount: String(transactionAmount),
-			category: String(category),
+			category: String(category).toLocaleUpperCase(),
 			transactionTitle: String(transactionTitle),
 			notes: String(notes),
 			invoiceUrl,
@@ -524,9 +534,9 @@ export const getAllTransactions = async (req: Request, res: Response) => {
 export const logoutUser = async (req: Request, res: Response) => {
 	try {
 		res.clearCookie("token", {
-			httpOnly: true,
-			secure: true,
-			sameSite: "none",
+			// httpOnly: true,
+			// secure: true,
+			// sameSite: "none",
 		});
 		return res.status(200).json({ message: "Logged out" });
 	} catch (error) {
