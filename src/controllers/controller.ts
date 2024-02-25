@@ -612,3 +612,99 @@ export const deleteUser = async (req: Request, res: Response) => {
 		return res.status(500).json({ message: "Internal Server Error" });
 	}
 };
+
+// DELETE : user/delete
+export const deleteUser = async (req: Request, res: Response) => {
+	const { email } = req.user;
+	const user = req.user as UserDocument;
+
+	try {
+		const deletedUser = await User.findOneAndDelete({ email });
+		await Transaction.deleteMany({ createdBy: user._id });
+		await History.deleteMany({ user: user._id });
+
+        if (!deletedUser) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        res.status(200).json({ message: "User deleted successfully" });
+    } catch (error) {
+        return res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
+// DELETE: /transaction/delete/:transactionId
+export const deleteTransaction = async (req: Request, res: Response) => {
+    try {
+        const { transactionId } = req.params;
+        const user = req.user as UserDocument;
+
+        // Find the transaction to delete
+        const transactionToDelete = await Transaction.findById(transactionId);
+
+        if (!transactionToDelete) {
+            return res.status(404).json({ message: "Transaction not found" });
+        }
+
+        // Check if the transaction belongs to the logged-in user
+        if (!transactionToDelete.createdBy.equals(user._id)) {
+            return res.status(403).json({
+                message: "You are not authorized to delete this transaction",
+            });
+        }
+
+        // Update user's balance based on transaction type
+        if (transactionToDelete.type === "income") {
+            user.totalBalance -= parseFloat(
+                transactionToDelete.transactionAmount
+            );
+            user.totalIncome -= parseFloat(
+                transactionToDelete.transactionAmount
+            );
+        } else {
+            user.totalBalance += parseFloat(
+                transactionToDelete.transactionAmount
+            );
+            user.totalExpense -= parseFloat(
+                transactionToDelete.transactionAmount
+            );
+        }
+
+        await user.save();
+
+        // Delete the transaction
+        await Transaction.findByIdAndDelete(transactionId);
+
+        // Find the monthly history for this transaction
+        const transactionDate = new Date(transactionToDelete.transactionDate);
+        const transactionMonth = transactionDate.getMonth();
+        const transactionYear = transactionDate.getFullYear();
+
+        const monthlyHistory = await History.findOne({
+            user: user._id,
+            month: transactionMonth,
+            year: transactionYear,
+        });
+
+        if (monthlyHistory) {
+            monthlyHistory.transactionIds = monthlyHistory.transactionIds || [];
+            // Remove the transaction ID from monthly history
+    
+            monthlyHistory.transactionIds =
+                monthlyHistory.transactionIds.filter(
+                    (id: Types.ObjectId) => !id.equals(transactionId)
+                ) as [Types.ObjectId];
+            // Recalculate the monthly balance
+            monthlyHistory.monthlyBalance =
+                monthlyHistory.income - monthlyHistory.expense;
+            await monthlyHistory.save();
+        }
+
+        return res
+            .status(200)
+            .json({ message: "Transaction deleted successfully" });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+};
