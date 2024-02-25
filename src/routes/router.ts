@@ -69,6 +69,7 @@ userRouter
 
 transactionRouter
 	.post("/add", allowOnlyLoggedInUser, upload.single("invoiceUrl"), controller.addTransaction)
-	.get("/getAll", allowOnlyLoggedInUser, controller.getAllTransactions);
+	.get("/getAll", allowOnlyLoggedInUser, controller.getAllTransactions)
+	.delete("/delete/:transactionId",allowOnlyLoggedInUser,controller.deleteTransaction);
 
 export { userRouter, transactionRouter };
