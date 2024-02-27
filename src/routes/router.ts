@@ -91,6 +91,11 @@ transactionRouter
         controller.addTransaction
     )
     .get("/getAll", allowOnlyLoggedInUser, controller.getAllTransactions)
+    .put(
+        "/update/:transactionId",
+        allowOnlyLoggedInUser,
+        controller.editTransaction
+    )
     .delete(
         "/delete/:transactionId",
         allowOnlyLoggedInUser,

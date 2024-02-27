@@ -658,6 +658,78 @@ export const deleteUser = async (req: Request, res: Response) => {
     }
 };
 
+//UPDATE: /transaction/update/:transactionId
+
+export const editTransaction = async (req: Request, res: Response) => {
+    try {
+        const { transactionId } = req.params;
+        const { transactionAmount, category, transactionTitle, notes } =
+            req.body;
+       
+        // Find the transaction by its ID
+        const transaction = await Transaction.findById(transactionId);
+        if (!transaction) {
+            return res.status(404).json({ message: "Transaction not found" });
+        }
+
+        // Calculate the difference in transaction amount and category
+        const amountDifference =
+            Number(transactionAmount) - Number(transaction.transactionAmount);
+        const categoryDifference = category !== transaction.category;
+
+        // Update the transaction details
+        transaction.transactionAmount = transactionAmount;
+        transaction.category = category;
+        transaction.transactionTitle = transactionTitle;
+        transaction.notes = notes;
+        await transaction.save();
+
+        // Update user's history and balance
+        const user: UserDocument = req.user;
+        const history = await History.findOne({ user: user._id });
+        if (!history) {
+            return res.status(404).json({ message: "User history not found" });
+        }
+
+        // Update monthly balance
+        history.monthlyBalance += amountDifference;
+
+        // Update income and expense based on category difference
+        if (categoryDifference) {
+            if (transaction.type === "income") {
+                history.income -= Number(transaction.transactionAmount);
+                history.income += Number(transactionAmount);
+            } else if (transaction.type === "expense") {
+                history.expense -= Number(transaction.transactionAmount);
+                history.expense += Number(transactionAmount);
+            }
+        }
+
+        await history.save();
+
+        // Update total balance
+        user.totalBalance += amountDifference;
+        if (categoryDifference) {
+            if (transaction.type === "income") {
+                user.totalIncome -= Number(transaction.transactionAmount);
+                user.totalIncome += Number(transactionAmount);
+            } else if (transaction.type === "expense") {
+                user.totalExpense -= Number(transaction.transactionAmount);
+                user.totalExpense += Number(transactionAmount);
+            }
+        }
+
+        await user.save();
+
+        res.status(200).json({
+            message: "Transaction details updated successfully",
+        });
+    } catch (error) {
+        console.error("Error editing transaction:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
 // DELETE: /transaction/delete/:transactionId
 export const deleteTransaction = async (req: Request, res: Response) => {
     try {
