@@ -97,11 +97,13 @@ transactionRouter
         controller.deleteTransaction
     );
 
-groupRouter.post(
-    "/create",
-    allowOnlyLoggedInUser,
-    upload.single("groupProfile"),
-    controller.createGroup
-);
+groupRouter
+    .post(
+        "/create",
+        allowOnlyLoggedInUser,
+        upload.single("groupProfile"),
+        controller.createGroup
+    )
+    .get("/getAll", allowOnlyLoggedInUser, controller.getAllGroups);
 
 export { userRouter, transactionRouter, groupRouter };

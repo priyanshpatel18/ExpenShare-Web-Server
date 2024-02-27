@@ -355,3 +355,30 @@ const groupSchema = new Schema<GroupDocument>({
 });
 
 export const Group = model<GroupDocument>("Group", groupSchema);
+
+const requestSchema = new Schema({
+    sender: {
+        type: Schema.Types.ObjectId,
+        ref: "User",
+    },
+    receiver: {
+        type: Schema.Types.ObjectId,
+        ref: "User",
+    },
+    groupId: {
+        type: Schema.Types.ObjectId,
+        ref: "Group",
+        required: true,
+    },
+    groupName: {
+        type: String,
+        required: true,
+    },
+    status: {
+        type: String,
+        enum: ["PENDING", "ACCEPTED", "REJECTED"],
+        default: "PENDING",
+    },
+});
+
+export const GroupRequest = model("GroupRequest", requestSchema);

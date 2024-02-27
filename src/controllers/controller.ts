@@ -74,7 +74,7 @@ export const setUserData = (user: UserData) => {
     );
 };
 
-const decodeEmail = (token: string) => {
+export const decodeEmail = (token: string) => {
     const decodedToken: string | JwtPayload | null = jwt.verify(
         token,
         String(process.env.SECRET_KEY)
@@ -823,9 +823,27 @@ export const createGroup = async (req: Request, res: Response) => {
 
         return res.status(200).json({ message: "Created Successfully" });
     } catch (error) {
-        console.log("====================================");
-        console.log(error);
-        console.log("====================================");
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+//GET :
+
+export const getAllGroups = async (req: Request, res: Response) => {
+    try {
+        const user: UserDocument | null = await User.findOne({
+            email: req.user.email,
+        });
+
+        if (!user) {
+            return res.status(401).json({ message: "User Not Found" });
+        }
+
+        const groups: GroupDocument[] | null = await Group.find({
+            _id: { $in: user.groups },
+        });
+
+        res.status(200).json({ groups });
+    } catch (error) {
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
