@@ -92,6 +92,7 @@ const getToken = (token: string) => {
 // Multer Middleware
 
 // Configure Storage Engine
+
 const storage: multer.StorageEngine = multer.diskStorage({
     filename: function (req: Express.Request, file: Express.Multer.File, cb) {
         cb(null, `${Date.now()}_${file.originalname}`);
@@ -110,6 +111,11 @@ userRouter
     )
     .get("/getAllUsers", allowOnlyLoggedInUser, controller.getAllUsers)
     .get("/getUser", allowOnlyLoggedInUser, controller.getUser)
+    .get(
+        "/membersdetail/:userId",
+        allowOnlyLoggedInUser,
+        controller.getmembersdetail
+    )
     .post("/handleRequest", allowOnlyLoggedInUser, controller.handleRequest)
     .post("/login", controller.loginUser)
     .post("/register", upload.single("profilePicture"), controller.registerUser)
