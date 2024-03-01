@@ -21,7 +21,11 @@ import {
     UserDocument,
     GroupDocument,
     Group,
+    GroupRequest,
+    GroupUserDocument,
+    GroupUser,
 } from "../models/models";
+import { emailToSocketMap, io } from "..";
 
 interface User {
     email: string;
@@ -74,18 +78,6 @@ export const setUserData = (user: UserData) => {
     );
 };
 
-export const decodeEmail = (token: string) => {
-    const decodedToken: string | JwtPayload | null = jwt.verify(
-        token,
-        String(process.env.SECRET_KEY)
-    );
-    if (!decodedToken || typeof decodedToken === "string") {
-        return "Invalid Token";
-    }
-
-    return String(decodedToken.email);
-};
-
 // POST : /user/register
 export const registerUser = async (req: Request, res: Response) => {
     try {
@@ -136,9 +128,9 @@ export const registerUser = async (req: Request, res: Response) => {
             userName: userName as string,
         });
         res.cookie("token", token, {
-            httpOnly: true,
-            secure: true,
-            sameSite: "none",
+            // httpOnly: true,
+            // secure: true,
+            // sameSite: "none",
         });
         // Clear userDataId & email from cookies
         res.clearCookie("userDataId");
@@ -181,9 +173,9 @@ export const loginUser = async (req: Request, res: Response) => {
             // Set Token in Cookies if Password is correct
             const token: string = setToken(user);
             res.cookie("token", token, {
-                httpOnly: true,
-                secure: true,
-                sameSite: "none",
+                // httpOnly: true,
+                // secure: true,
+                // sameSite: "none",
             });
             res.status(201).json({ message: "Login Successfully" });
         }
@@ -269,15 +261,15 @@ export const sendVerificationMail = async (req: Request, res: Response) => {
 
         // Set the User Data Id in the Cookies
         res.cookie("userDataId", UserDataDocument._id, {
-            httpOnly: true,
-            secure: true,
-            sameSite: "none",
+            // httpOnly: true,
+            // secure: true,
+            // sameSite: "none",
         });
         // Set the OTP ID in the cookies
         res.cookie("otpId", otpDocument._id, {
-            httpOnly: true,
-            secure: true,
-            sameSite: "none",
+            // httpOnly: true,
+            // secure: true,
+            // sameSite: "none",
         });
         res.status(200).json({ message: "OTP Sent Successfully" });
     } catch (error) {
@@ -310,9 +302,9 @@ export const verifyOtp = async (req: Request, res: Response) => {
 
         // Set Email in the cookies
         res.cookie("email", otp.email, {
-            httpOnly: true,
-            secure: true,
-            sameSite: "none",
+            // httpOnly: true,
+            // secure: true,
+            // sameSite: "none",
         });
         // Clear Cookie and delete the OTP from the database
         res.clearCookie("otpId");
@@ -383,9 +375,9 @@ export const sendMail = async (req: Request, res: Response) => {
 
         // Set the OTP ID in the cookies
         res.cookie("otpId", otpDocument._id, {
-            httpOnly: true,
-            secure: true,
-            sameSite: "none",
+            // httpOnly: true,
+            // secure: true,
+            // sameSite: "none",
         });
         res.status(200).json({ message: "OTP Sent Successfully" });
     } catch (error) {
@@ -423,11 +415,6 @@ export const resetPassword = async (req: Request, res: Response) => {
         console.error(error);
         res.status(500).json({ message: "Internal server error" });
     }
-};
-
-// GET: /user/checkAuth
-export const checkAuth = (req: Request, res: Response) => {
-    res.sendStatus(200);
 };
 
 // GET: /user/getUser
@@ -570,9 +557,9 @@ export const getAllTransactions = async (req: Request, res: Response) => {
 export const logoutUser = async (req: Request, res: Response) => {
     try {
         res.clearCookie("token", {
-            httpOnly: true,
-            secure: true,
-            sameSite: "none",
+            // httpOnly: true,
+            // secure: true,
+            // sameSite: "none",
         });
         return res.status(200).json({ message: "Logged out" });
     } catch (error) {
@@ -813,12 +800,8 @@ interface allUserObject {
 }
 
 export const getAllUsers = async (req: Request, res: Response) => {
-    const { token } = req.body;
-
-    const email: string = decodeEmail(token);
-
     try {
-        const user: UserDocument | null = await User.findOne({ email });
+        const user: UserDocument | null = await User.findOne({ email: req.user.email });
 
         if (!user) {
             return res.status(401).json({ message: "User Not Found" });
@@ -893,13 +876,13 @@ export const createGroup = async (req: Request, res: Response) => {
         user.groups.push(GroupDoc._id);
         await user.save();
 
-        return res.status(200).json({ message: "Created Successfully" });
+        return res.status(200).json({ message: "Group Created" });
     } catch (error) {
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
-//GET :
 
+//GET :
 export const getAllGroups = async (req: Request, res: Response) => {
     try {
         const user: UserDocument | null = await User.findOne({
@@ -918,4 +901,139 @@ export const getAllGroups = async (req: Request, res: Response) => {
     } catch (error) {
         res.status(500).json({ message: "Internal Server Error" });
     }
+};
+
+// GET : /user/notifications
+export const getAllNotifications = async (req: Request, res: Response) => {
+	try {
+		const user: UserDocument | null = await User.findOne({ email: req.user.email });
+
+		if (!user) {
+			return res.status(401).json({ message: "User Not Found" });
+		}
+
+		const requests = await GroupRequest.find({
+			receiver: user._id,
+			status: "PENDING",
+		});
+
+		const notifications = requests.map((request) => ({
+			requestId: request._id,
+			groupName: request.groupName,
+			groupId: request.groupId,
+		}));
+
+		res.status(200).json({ notifications });
+	} catch (error) {
+		res.status(500).json({ message: "Internal Server Error" });
+	}
+};
+
+// POST : /user/handleRequest
+export const handleRequest = async (req: Request, res: Response) => {
+	const { requestId, type } = req.body;
+
+	try {
+		const user: UserDocument | null = await User.findOne({ email: req.user.email });
+
+		if (!user) {
+			return res.status(401).json({ message: "User Not Found" });
+		}
+
+		const request = await GroupRequest.findById(requestId);
+
+		if (!request) {
+			return res.status(404).json({ message: "Request Not Found" });
+		}
+
+		const group: GroupDocument | null = await Group.findById(request.groupId);
+
+		if (!group) {
+			return res.status(404).json({ message: "Group doesn't exist" });
+		}
+
+		if (type === "accept" && request.receiver) {
+			request.status = "ACCEPTED";
+			group.members.push(request.receiver);
+			user.groups.push(request.groupId);
+
+			const existingGroupUser: GroupUserDocument | null = await GroupUser.findOne({
+				email: user.email,
+			});
+			if (!existingGroupUser) {
+				// Create a new GroupUser if it doesn't exist
+				await GroupUser.create({
+					_id: new Types.ObjectId(user._id),
+					userId: new Types.ObjectId(user._id),
+					email: user.email,
+					userName: user.userName,
+					profilePicture: user.profilePicture,
+					expenses: [],
+				});
+			}
+		} else if (type === "reject") {
+			request.status = "REJECTED";
+		}
+
+		await user.save();
+		await group.save();
+		await request.save();
+
+		return res.sendStatus(200);
+	} catch (error) {
+		console.error("Error handling request:", error);
+		res.status(500).json({ message: "Internal Server Error" });
+	}
+};
+
+// POST : /group/removeMember       
+export const removeMember = async (req: Request, res: Response) => {
+	const { memberEmail, groupId } = req.body;
+
+	try {
+		const user: UserDocument | null = await User.findOne({ email: req.user.email });
+
+		if (!user) {
+			return res.status(401).json({ message: "User Not Found" });
+		}
+
+		const group: GroupDocument | null = await Group.findById({ _id: groupId });
+
+		if (!group) {
+			return res.status(404).json({ message: "Group doesn't exist" });
+		}
+
+		const groupUser: GroupUserDocument | null = await GroupUser.findOne({
+			email: memberEmail,
+		});
+
+		group.members = group.members.filter((member) => !member.equals(groupUser?._id));
+
+		if (groupUser) {
+			const member: UserDocument | null = await User.findOne({
+				_id: groupUser.userId,
+			});
+
+			if (member) {
+				member.groups = member.groups.filter((grpId) => !grpId.equals(groupId));
+				await member.save();
+
+				const socketId = emailToSocketMap[member.email];
+
+				const data = {
+					message: `You have been removed from ${group.groupName}`,
+					groupId,
+				};
+
+				io.to(socketId).emit("removedMember", data);
+			}
+		}
+
+		await group.save();
+
+		return res.sendStatus(200);
+	} catch (error) {
+		console.error("Error handling request:", error);
+		res.status(500).json({ message: "Internal Server Error" });
+	}
 };

@@ -306,6 +306,42 @@ export const GroupTransaction = model(
     groupTransactionSchema
 );
 
+// -----------GROUP-USERS----------- //
+export interface GroupUserDocument extends Document {
+  _id: string;
+  userId: Types.ObjectId;
+  email: string;
+  userName: string;
+  profilePicture: string;
+  expenses: Types.ObjectId[];
+}
+
+const groupUserSchema = new Schema<GroupUserDocument>({
+  userId: {
+    type: Schema.Types.ObjectId,
+    ref: "User",
+    required: true,
+  },
+  email: {
+    type: String,
+    required: true,
+  },
+  userName: {
+    type: String,
+    required: true,
+  },
+  profilePicture: {
+    type: String,
+    contentType: String,
+  },
+  expenses: {
+    type: [Schema.Types.ObjectId],
+    ref: "GroupTransaction",
+  },
+});
+
+export const GroupUser = model<GroupUserDocument>("GroupUser", groupUserSchema);
+
 export interface GroupDocument extends Document {
     groupName: string;
     groupProfile: string;
