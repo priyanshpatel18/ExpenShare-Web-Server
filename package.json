@@ -6,7 +6,7 @@
   "scripts": {
     "build": "tsc",
     "start": "node public/index.js",
-    "dev": "concurrently \"tsc -w\" \"nodemon public/index.js\""
+    "dev": "concurrently \"tsc -w\" \"nodemon public/index\""
   },
   "keywords": [],
   "author": "",
