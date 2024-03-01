@@ -652,7 +652,7 @@ export const editTransaction = async (req: Request, res: Response) => {
         const { transactionId } = req.params;
         const { transactionAmount, category, transactionTitle, notes } =
             req.body;
-       
+
         // Find the transaction by its ID
         const transaction = await Transaction.findById(transactionId);
         if (!transaction) {
@@ -662,7 +662,7 @@ export const editTransaction = async (req: Request, res: Response) => {
         // Calculate the difference in transaction amount and category
         const amountDifference =
             Number(transactionAmount) - Number(transaction.transactionAmount);
-        const categoryDifference = category !== transaction.category;
+        const categoryDifference = category == transaction.category;
 
         // Update the transaction details
         transaction.transactionAmount = transactionAmount;
@@ -1036,4 +1036,27 @@ export const removeMember = async (req: Request, res: Response) => {
 		console.error("Error handling request:", error);
 		res.status(500).json({ message: "Internal Server Error" });
 	}
+};
+export const getselectedlGroup = async (req: Request, res: Response) => {
+    try {
+        const user: UserDocument | null = await User.findOne({
+            email: req.user.email,
+        });
+
+        if (!user) {
+            return res.status(401).json({ message: "User Not Found" });
+        }
+
+        const group: GroupDocument[] | null = await Group.find({
+            _id: req.params.groupId,
+        });
+
+        // const groups: GroupDocument[] | null = await Group.find({
+        //     _id: { $in: user.groups },
+        // });
+
+        res.status(200).json(group);
+    } catch (error) {
+        res.status(500).json({ message: "Internal Server Error" });
+    }
 };

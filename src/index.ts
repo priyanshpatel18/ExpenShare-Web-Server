@@ -11,13 +11,12 @@ import path from "path";
 // File Imports
 import * as socketController from "./controllers/socketControllers";
 import {
-	userRouter,
-	transactionRouter,
-	groupRouter,
-	CustomSocket,
-	authMibblewareForSocket,
+    userRouter,
+    transactionRouter,
+    groupRouter,
+    CustomSocket,
+    authMibblewareForSocket,
 } from "./routes/router";
-
 
 // Creating Backend Application
 const app: Express = express();
@@ -25,14 +24,14 @@ const app: Express = express();
 const server = createServer(app);
 // Create an IO Server
 export const io = new Server(server, {
-	cors: {
-		origin: ["https://expenshare.vercel.app", "http://your_IP:5173"],
-	},
+    cors: {
+        origin: ["https://expenshare.vercel.app", "http://localhost:5173"],
+    },
 });
 
 // Create an interface to define the email-to-socket mapping
 interface EmailToSocketMap {
-	[email: string]: string;
+    [email: string]: string;
 }
 
 // Create an empty object to store the mapping between email and socket ID
@@ -42,47 +41,47 @@ export const emailToSocketMap: EmailToSocketMap = {};
 io.use(authMibblewareForSocket);
 
 io.on("connection", (socket: CustomSocket) => {
-	console.log("User connected", socket.id);
+    console.log("User connected", socket.id);
 
-	// Bind email to the socketId
-	socket.on("login", () => {
-		if (socket.user?.email) {
-			emailToSocketMap[socket.user?.email] = socket.id;
-			console.log(emailToSocketMap);
-		} else {
-			console.log("Invalid email:", socket.user?.email);
-		}
-	});
+    // Bind email to the socketId
+    socket.on("login", () => {
+        if (socket.user?.email) {
+            emailToSocketMap[socket.user?.email] = socket.id;
+            console.log(emailToSocketMap);
+        } else {
+            console.log("Invalid email:", socket.user?.email);
+        }
+    });
 
-	socket.on("getUsers", (filter: string) => {
-		socketController.handleGetUsers(socket, filter);
-	});
+    socket.on("getUsers", (filter: string) => {
+        socketController.handleGetUsers(socket, filter);
+    });
 
-	socket.on("sendRequest", (data) => {
-		socketController.handleSendRequest(socket, data);
-	});
+    socket.on("sendRequest", (data) => {
+        socketController.handleSendRequest(socket, data);
+    });
 
-	socket.on("acceptRequest", (data) => {
-		socketController.handleAcceptRequest(socket, data);
-	});
+    socket.on("acceptRequest", (data) => {
+        socketController.handleAcceptRequest(socket, data);
+    });
 
-	socket.on("removeMember", (data) => {
-		socketController.handleAcceptRequest(socket, data);
-	});
+    socket.on("removeMember", (data) => {
+        socketController.handleAcceptRequest(socket, data);
+    });
 
-	socket.on("disconnect", () => {
-		socket.disconnect();
-		console.log("user disconnected", socket.id);
-	});
+    socket.on("disconnect", () => {
+        socket.disconnect();
+        console.log("user disconnected", socket.id);
+    });
 });
 
 // Middlewares
 app.use(
-	cors({
-		origin: ["https://expenshare.vercel.app", "http://your_IP:5173"],
-		methods: ["GET", "POST", "PUT", "DELETE"],
-		credentials: true,
-	}),
+    cors({
+        origin: ["https://expenshare.vercel.app", "http://localhost:5173"],
+        methods: ["GET", "POST", "PUT", "DELETE"],
+        credentials: true,
+    })
 );
 app.use(cookieParser());
 app.use(express.json());
@@ -97,28 +96,28 @@ app.use("/group", groupRouter);
 
 // Database Cleanup
 cron.schedule(
-	"0 * * * *",
-	async () => {
-		console.log("Running Database cleanup job...");
-		try {
-			const client = await MongoClient.connect(process.env.DB_URL!);
-			const db = client.db();
-			const otpCollection = db.collection("otps");
-			const userDataCollection = db.collection("userdatas");
-			const now = new Date();
+    "0 * * * *",
+    async () => {
+        console.log("Running Database cleanup job...");
+        try {
+            const client = await MongoClient.connect(process.env.DB_URL!);
+            const db = client.db();
+            const otpCollection = db.collection("otps");
+            const userDataCollection = db.collection("userdatas");
+            const now = new Date();
 
-			await otpCollection.deleteMany({ expires: { $lt: now } });
-			await userDataCollection.deleteMany({ expires: { $lt: now } });
-			console.log("Expired Colections cleared successfully.");
-			client.close();
-		} catch (error) {
-			console.error("Error clearing Expired Collection:", error);
-		}
-	},
-	{
-		scheduled: true,
-		timezone: "Asia/Kolkata",
-	},
+            await otpCollection.deleteMany({ expires: { $lt: now } });
+            await userDataCollection.deleteMany({ expires: { $lt: now } });
+            console.log("Expired Colections cleared successfully.");
+            client.close();
+        } catch (error) {
+            console.error("Error clearing Expired Collection:", error);
+        }
+    },
+    {
+        scheduled: true,
+        timezone: "Asia/Kolkata",
+    }
 );
 
 // DB Connection
@@ -126,13 +125,13 @@ const PORT: number = 8080 | Number(process.env.PORT);
 const DB_URL: string = String(process.env.DB_URL);
 
 mongoose
-	.connect(DB_URL)
-	.then(() => {
-		console.log("Database Connected");
-		server.listen(PORT, "your_IP", () => {
-			console.log("Server Started");
-		});
-	})
-	.catch((err) => {
-		console.log(err);
-	});
+    .connect(DB_URL)
+    .then(() => {
+        console.log("Database Connected");
+        server.listen(PORT, "localhost", () => {
+            console.log("Server Started");
+        });
+    })
+    .catch((err) => {
+        console.log(err);
+    });
