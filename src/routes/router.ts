@@ -45,7 +45,7 @@ async function allowOnlyLoggedInUser(
 }
 
 interface CustomSocket extends Socket {
-    user?: any;
+	user?: UserDocument;
 }
 
 // User Authentication middleware for socket
@@ -156,21 +156,12 @@ transactionRouter
     );
 
 groupRouter
-    .post("/removeMember", allowOnlyLoggedInUser, controller.removeMember)
-    .post(
-        "/create",
-        allowOnlyLoggedInUser,
-        upload.single("groupProfile"),
-        controller.createGroup
-    )
-    .get("/getAll", allowOnlyLoggedInUser, controller.getAllGroups)
-    .post(
-        "/create",
-        allowOnlyLoggedInUser,
-        upload.single("groupProfile"),
-        controller.createGroup
-    )
-    .get("/getAll", allowOnlyLoggedInUser, controller.getAllGroups)
-    .get("/:groupId", allowOnlyLoggedInUser, controller.getselectedlGroup);
+	.post("/addGroupTransaction", allowOnlyLoggedInUser, controller.addGroupTransaction)
+	.post("/removeMember", allowOnlyLoggedInUser, controller.removeMember)
+	.post("/create", allowOnlyLoggedInUser, upload.single("groupProfile"), controller.createGroup)
+	.get("/getAll", allowOnlyLoggedInUser, controller.getAllGroups)
+	.post("/create", allowOnlyLoggedInUser, upload.single("groupProfile"), controller.createGroup)
+	.get("/getAll", allowOnlyLoggedInUser, controller.getAllGroups)
+	.get("/:groupId", allowOnlyLoggedInUser, controller.getselectedlGroup);
 
 export { userRouter, transactionRouter, groupRouter, CustomSocket };
