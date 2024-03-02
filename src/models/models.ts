@@ -308,113 +308,165 @@ export const GroupTransaction = model(
 
 // -----------GROUP-USERS----------- //
 export interface GroupUserDocument extends Document {
-  _id: string;
-  userId: Types.ObjectId;
-  email: string;
-  userName: string;
-  profilePicture: string;
-  expenses: Types.ObjectId[];
+	_id: string;
+	userId: Types.ObjectId;
+	email: string;
+	userName: string;
+	profilePicture: string;
+	balances: Types.ObjectId[];
 }
 
 const groupUserSchema = new Schema<GroupUserDocument>({
-  userId: {
-    type: Schema.Types.ObjectId,
-    ref: "User",
-    required: true,
-  },
-  email: {
-    type: String,
-    required: true,
-  },
-  userName: {
-    type: String,
-    required: true,
-  },
-  profilePicture: {
-    type: String,
-    contentType: String,
-  },
-  expenses: {
-    type: [Schema.Types.ObjectId],
-    ref: "GroupTransaction",
-  },
+	userId: {
+		type: Schema.Types.ObjectId,
+		ref: "User",
+		required: true,
+	},
+	email: {
+		type: String,
+		required: true,
+	},
+	userName: {
+		type: String,
+		required: true,
+	},
+	profilePicture: {
+		type: String,
+		contentType: String,
+	},
+	balances: {
+		type: [Schema.Types.ObjectId],
+		ref: "Balance",
+		required: true,
+	},
 });
 
 export const GroupUser = model<GroupUserDocument>("GroupUser", groupUserSchema);
 
 export interface GroupDocument extends Document {
-    groupName: string;
-    groupProfile: string;
-    publicId: string;
-    createdBy: Types.ObjectId;
-    members: Types.ObjectId[];
-    groupExpense: Types.ObjectId[];
-    totalExpense: number;
-    category: string;
+	groupName: string;
+	groupProfile: string;
+	publicId: string;
+	createdBy: Types.ObjectId;
+	members: Types.ObjectId[];
+	groupTransactions: Types.ObjectId[];
+	balances: Types.ObjectId[];
+	totalExpense: number;
+	category: string;
 }
 
 const groupSchema = new Schema<GroupDocument>({
-    groupName: {
-        type: String,
-        required: true,
-    },
-    groupProfile: {
-        type: String,
-    },
-    publicId: {
-        type: String,
-    },
-    createdBy: {
-        type: Schema.Types.ObjectId,
-        ref: "User",
-        required: true,
-    },
-    members: {
-        type: [Schema.Types.ObjectId],
-        ref: "User",
-        default: [],
-    },
-    groupExpense: {
-        type: [Schema.Types.ObjectId],
-        ref: "GroupTransaction",
-        default: [],
-    },
-    totalExpense: {
-        type: Number,
-        required: true,
-        default: 0,
-    },
-    category: {
-        type: String,
-        default: "NONE",
-    },
+	groupName: {
+		type: String,
+		required: true,
+	},
+	groupProfile: {
+		type: String,
+	},
+	publicId: {
+		type: String,
+	},
+	createdBy: {
+		type: Schema.Types.ObjectId,
+		ref: "GroupUser",
+		required: true,
+	},
+	members: {
+		type: [Schema.Types.ObjectId],
+		ref: "GroupUser",
+		default: [],
+	},
+	groupTransactions: {
+		type: [Schema.Types.ObjectId],
+		ref: "GroupTransaction",
+		default: [],
+	},
+	balances: [
+		{
+			type: Schema.Types.ObjectId,
+			ref: "Balance",
+			required: true,
+		},
+	],
+	totalExpense: {
+		type: Number,
+		required: true,
+		default: 0,
+	},
+	category: {
+		type: String,
+		default: "NONE",
+	},
 });
 
 export const Group = model<GroupDocument>("Group", groupSchema);
 
 const requestSchema = new Schema({
-    sender: {
-        type: Schema.Types.ObjectId,
-        ref: "User",
-    },
-    receiver: {
-        type: Schema.Types.ObjectId,
-        ref: "User",
-    },
-    groupId: {
-        type: Schema.Types.ObjectId,
-        ref: "Group",
-        required: true,
-    },
-    groupName: {
-        type: String,
-        required: true,
-    },
-    status: {
-        type: String,
-        enum: ["PENDING", "ACCEPTED", "REJECTED"],
-        default: "PENDING",
-    },
+	sender: {
+		type: Schema.Types.ObjectId,
+		ref: "User",
+	},
+	receiver: {
+		type: Schema.Types.ObjectId,
+		ref: "User",
+	},
+	groupId: {
+		type: Schema.Types.ObjectId,
+		ref: "Group",
+		required: true,
+	},
+	groupTransactions: {
+		type: [Schema.Types.ObjectId],
+		ref: "GroupTransaction",
+		default: [],
+	},
+	groupName: {
+		type: String,
+		required: true,
+	},
+	status: {
+		type: String,
+		enum: ["PENDING", "ACCEPTED", "REJECTED"],
+		default: "PENDING",
+	},
 });
 
 export const GroupRequest = model("GroupRequest", requestSchema);
+
+export interface BalanceDocument extends Document {
+	groupId: Types.ObjectId;
+	memberId: Types.ObjectId;
+	getsBack: number;
+	owes: number;
+	paidBy: Types.ObjectId;
+}
+
+const balanceSchema = new Schema<BalanceDocument>({
+	groupId: {
+		type: Schema.Types.ObjectId,
+		ref: "Group",
+		required: true,
+	},
+	memberId: {
+		type: Schema.Types.ObjectId,
+		ref: "GroupUser",
+		required: true,
+	},
+	getsBack: {
+		type: Number,
+		required: true,
+		default: 0,
+	},
+	owes: {
+		type: Number,
+		required: true,
+		default: 0,
+	},
+	paidBy: {
+		type: Schema.Types.ObjectId,
+		ref: "GroupUser",
+		required: true,
+	},
+});
+
+export const Balance = model<BalanceDocument>("Balance", balanceSchema);

@@ -24,6 +24,9 @@ import {
     GroupRequest,
     GroupUserDocument,
     GroupUser,
+    GroupTransaction,
+    BalanceDocument,
+    Balance,
 } from "../models/models";
 import { emailToSocketMap, io } from "..";
 
@@ -423,6 +426,7 @@ export const getUser = (req: Request, res: Response) => {
 
     try {
         const userObject = {
+            _id: user._id,
             email: user.email,
             userName: user.userName,
             profilePicture: user.profilePicture,
@@ -1047,13 +1051,13 @@ export const removeMember = async (req: Request, res: Response) => {
         }
 
         await group.save();
-
         return res.sendStatus(200);
     } catch (error) {
         console.error("Error handling request:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
+
 export const getselectedlGroup = async (req: Request, res: Response) => {
     try {
         const user: UserDocument | null = await User.findOne({
@@ -1064,11 +1068,11 @@ export const getselectedlGroup = async (req: Request, res: Response) => {
             return res.status(401).json({ message: "User Not Found" });
         }
 
-        const group: GroupDocument[] = await Group.find({
+        const group: GroupDocument | null = await Group.findOne({
             _id: req.params.groupId,
         });
 
-        const selectedgroup: GroupDocument = group[0];
+        const selectedgroup: GroupDocument | null = group;
         res.status(200).json(selectedgroup);
     } catch (error) {
         res.status(500).json({ message: "Internal Server Error" });
@@ -1092,13 +1096,93 @@ export const getmembersdetail = async (req: Request, res: Response) => {
             return res.status(404).json({ message: "Group Member not found" });
         }
         const memberDetails = {
-            userName: groupUser?.userName,
-            email: groupUser?.email,
-            profilePicture: groupUser?.profilePicture,
-            expenses: groupUser?.expenses, // You might need to adjust this based on your schema
-        };
+            _id: groupUser?._id,
+			userName: groupUser?.userName,
+			email: groupUser?.email,
+			profilePicture: groupUser?.profilePicture,
+			expenses: groupUser?.balances, 
+		};
         res.status(200).json(memberDetails);
     } catch (error) {
         res.status(500).json({ message: "Internal Server Error" });
     }
+};
+
+// POST group/addtransaction
+export const addGroupTransaction = async (req: Request, res: Response) => {
+	const { groupId, splitAmong, category, transactionTitle, transactionAmount, transactionDate } =
+		req.body;
+
+    const paidBy = req.user._id;    
+
+	try {
+		const user: UserDocument | null = await User.findOne({ email: req.user.email });
+
+		if (!user) {
+			return res.status(401).json({ message: "User Not Found" });
+		}
+
+		const groupUsers: GroupUserDocument[] | null = await GroupUser.find({
+			email: { $in: [...splitAmong, paidBy] },
+		});
+
+		if (!groupUsers) {
+			return res.status(401).json({ message: "Group Users not found" });
+		}        
+
+		const GroupTransactionDoc = await GroupTransaction.create({
+			groupId,
+			paidBy: new Types.ObjectId(paidBy),
+			splitAmong: splitAmong.map((user: UserDocument) => user._id),
+			category,
+			transactionTitle,
+			transactionAmount,
+			transactionDate,
+		});
+
+		const group: GroupDocument | null = await Group.findOne({
+			_id: groupId,
+		});
+
+		if (!group) {
+			return res.status(404).json({ message: "Group doesn't exist" });
+		}        
+
+		group.totalExpense += parseFloat(transactionAmount);;
+		group.groupTransactions.push(new Types.ObjectId(GroupTransactionDoc._id));
+
+		await group.save();
+        
+		const memberIds = splitAmong.map((user: GroupUserDocument) => user._id);
+		const members = await GroupUser.find({
+			_id: { $in: memberIds },
+		});
+        
+		const totalMembers = splitAmong.length + 1;
+		const splitAmount = transactionAmount / totalMembers;
+		const paidAmount = transactionAmount - splitAmount;
+
+
+		for (const member of members) {
+			const balance: BalanceDocument = await Balance.findOneAndUpdate(
+				{ groupId: groupId, memberId: member._id },
+				{
+					$inc: {
+						getsBack: member._id === paidBy ? paidAmount : 0,
+						owes: splitAmong.includes(member._id) ? splitAmount : 0,
+					},
+				},
+				{ upsert: true, new: true },
+			);
+            
+			member.balances.push(balance._id);
+            console.log("A new Transaction was added");
+			io.to(emailToSocketMap[member.email]).emit("newTransaction", "A new Transaction was added");
+		}
+
+		res.status(200).json({ message: "Transaction Added Successfully" });
+	} catch (error) {
+		console.error("Error handling request:", error);
+		res.status(500).json({ message: "Internal Server Error" });
+	}
 };

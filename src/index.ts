@@ -24,9 +24,9 @@ const app: Express = express();
 const server = createServer(app);
 // Create an IO Server
 export const io = new Server(server, {
-    cors: {
-        origin: ["https://expenshare.vercel.app", "http://localhost:5173"],
-    },
+	cors: {
+		origin: ["https://expenshare.vercel.app", "http://:5173"],
+	},
 });
 
 // Create an interface to define the email-to-socket mapping
@@ -50,7 +50,7 @@ io.on("connection", (socket: CustomSocket) => {
             console.log(emailToSocketMap);
         } else {
             console.log("Invalid email:", socket.user?.email);
-        }
+        }        
     });
 
     socket.on("getUsers", (filter: string) => {
@@ -77,11 +77,11 @@ io.on("connection", (socket: CustomSocket) => {
 
 // Middlewares
 app.use(
-    cors({
-        origin: ["https://expenshare.vercel.app", "http://localhost:5173"],
-        methods: ["GET", "POST", "PUT", "DELETE"],
-        credentials: true,
-    })
+	cors({
+		origin: ["https://expenshare.vercel.app", "http://:5173"],
+		methods: ["GET", "POST", "PUT", "DELETE"],
+		credentials: true,
+	}),
 );
 app.use(cookieParser());
 app.use(express.json());
@@ -128,9 +128,9 @@ mongoose
     .connect(DB_URL)
     .then(() => {
         console.log("Database Connected");
-        server.listen(PORT, "localhost", () => {
-            console.log("Server Started");
-        });
+        server.listen(PORT, "", () => {
+			console.log("Server Started");
+		});
     })
     .catch((err) => {
         console.log(err);
