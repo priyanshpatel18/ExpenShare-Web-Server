@@ -27,6 +27,7 @@ import {
     GroupTransaction,
     BalanceDocument,
     Balance,
+    GroupTransactionDocument,
 } from "../models/models";
 import { emailToSocketMap, io } from "..";
 
@@ -1183,6 +1184,35 @@ export const addGroupTransaction = async (req: Request, res: Response) => {
 		res.status(200).json({ message: "Transaction Added Successfully" });
 	} catch (error) {
 		console.error("Error handling request:", error);
+		res.status(500).json({ message: "Internal Server Error" });
+	}
+};
+
+export const getGroupTransaction = async (req: Request, res: Response) => {
+
+    console.log("RUN");
+    
+	try {
+		const user: UserDocument | null = await User.findOne({
+			email: req.user.email,
+		});
+
+		if (!user) {
+			return res.status(401).json({ message: "User Not Found" });
+		}
+
+		const groupTransaction: GroupTransactionDocument | null = await GroupTransaction.findOne({
+			_id: req.params.groupTransactionId,
+		});
+
+		if (!groupTransaction) {
+			return res.status(404).json({ message: "Group transaction not found" });
+		}
+
+        console.log("group Transaction : ",groupTransaction);
+
+		res.status(200).json(groupTransaction);
+	} catch (error) {
 		res.status(500).json({ message: "Internal Server Error" });
 	}
 };

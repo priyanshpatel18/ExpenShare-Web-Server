@@ -25,7 +25,7 @@ const server = createServer(app);
 // Create an IO Server
 export const io = new Server(server, {
 	cors: {
-		origin: ["https://expenshare.vercel.app", "http://:5173"],
+		origin: ["https://expenshare.vercel.app", "http://192.168.43.242:5173"],
 	},
 });
 
@@ -78,7 +78,7 @@ io.on("connection", (socket: CustomSocket) => {
 // Middlewares
 app.use(
 	cors({
-		origin: ["https://expenshare.vercel.app", "http://:5173"],
+		origin: ["https://expenshare.vercel.app", "http://192.168.43.242:5173"],
 		methods: ["GET", "POST", "PUT", "DELETE"],
 		credentials: true,
 	}),
@@ -128,7 +128,7 @@ mongoose
     .connect(DB_URL)
     .then(() => {
         console.log("Database Connected");
-        server.listen(PORT, "", () => {
+        server.listen(PORT, "192.168.43.242", () => {
 			console.log("Server Started");
 		});
     })
