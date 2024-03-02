@@ -1064,15 +1064,12 @@ export const getselectedlGroup = async (req: Request, res: Response) => {
             return res.status(401).json({ message: "User Not Found" });
         }
 
-        const group: GroupDocument[] | null = await Group.find({
+        const group: GroupDocument[] = await Group.find({
             _id: req.params.groupId,
         });
 
-        // const groups: GroupDocument[] | null = await Group.find({
-        //     _id: { $in: user.groups },
-        // });
-
-        res.status(200).json(group);
+        const selectedgroup: GroupDocument = group[0];
+        res.status(200).json(selectedgroup);
     } catch (error) {
         res.status(500).json({ message: "Internal Server Error" });
     }
