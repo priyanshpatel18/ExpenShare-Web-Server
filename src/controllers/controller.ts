@@ -867,23 +867,55 @@ export const createGroup = async (req: Request, res: Response) => {
             publicId = result.public_id;
         }
 
+        let existingGroupUser: GroupUserDocument | null;
+		existingGroupUser = await GroupUser.findOne({
+			email: user.email,
+		});
+		if (!existingGroupUser) {
+			// Create a new GroupUser if it doesn't exist
+			existingGroupUser = await GroupUser.create({
+				userId: new Types.ObjectId(user._id),
+				email: user.email,
+				userName: user.userName,
+				profilePicture: user.profilePicture,
+				expenses: [],
+			});
+		}
+
         const newGroup = {
-            groupName,
-            groupProfile: groupProfile ? profileUrl : "",
-            publicId: publicId.trim() ? publicId : "",
-            createdBy: new Types.ObjectId(user._id),
-            members: [],
-            groupExpense: [],
-            totalExpense: 0,
-            category: category,
-        };
+			groupName,
+			groupProfile: groupProfile ? profileUrl : "",
+			publicId: publicId.trim() ? publicId : "",
+			createdBy: new Types.ObjectId(user._id),
+			members: [existingGroupUser._id],
+			groupExpense: [],
+			totalExpense: 0,
+			category: category,
+		};
 
         const GroupDoc: GroupDocument = await Group.create(newGroup);
 
         user.groups.push(GroupDoc._id);
         await user.save();
 
-        return res.status(200).json({ message: "Group Created" });
+        const groupUser = {
+			email: user.email,
+			userName: user.userName,
+			profilePicture: user.profilePicture,
+		};
+
+        const responseGroup = {
+			_id: GroupDoc._id,
+			groupName,
+			groupProfile: groupProfile ? profileUrl : "",
+			createdBy: groupUser,
+			members: [groupUser],
+			groupExpenses: [],
+			totalExpense: 0,
+			category: category,
+		};
+
+		return res.status(200).json({ message: "Created Successfully", group: responseGroup });
     } catch (error) {
         res.status(500).json({ message: "Internal Server Error" });
     }
@@ -891,23 +923,80 @@ export const createGroup = async (req: Request, res: Response) => {
 
 //GET :
 export const getAllGroups = async (req: Request, res: Response) => {
-    try {
-        const user: UserDocument | null = await User.findOne({
-            email: req.user.email,
-        });
+	try {
+		const user: UserDocument | null = await User.findOne({
+			email: req.user.email,
+		});
 
-        if (!user) {
-            return res.status(401).json({ message: "User Not Found" });
-        }
+		if (!user) {
+			return res.status(401).json({ message: "User Not Found" });
+		}
 
-        const groups: GroupDocument[] | null = await Group.find({
-            _id: { $in: user.groups },
-        });
+		const groupUser: GroupUserDocument | null = await GroupUser.findOne({
+			email: user.email,
+		});
 
-        res.status(200).json({ groups });
-    } catch (error) {
-        res.status(500).json({ message: "Internal Server Error" });
-    }
+		if (!groupUser) {
+			return res.status(401).json({ message: "Group User Not Found" });
+		}
+
+		const groups: GroupDocument[] | null = await Group.find({
+			_id: { $in: user.groups },
+		});        
+
+		const allGroupUsers: GroupUserDocument[] | null = await GroupUser.find();
+		const allGroupTransactions: GroupTransactionDocument[] | null = await GroupTransaction.find({
+			groupId: { $in: groups.map((group) => group._id) },
+		});
+		const allBalances: BalanceDocument[] | null = await Balance.find({
+			groupId: { $in: groups.map((group) => group._id) },
+		});
+
+		const mappedGroups = groups.map((group) => ({
+			_id: group._id,
+			groupName: group.groupName,
+			groupProfile: group.groupProfile ? group.groupProfile : undefined,
+			createdBy: allGroupUsers.find((user) => new Types.ObjectId(user._id).equals(group.createdBy)),
+			members: allGroupUsers.filter((user) => {
+				const userId = new Types.ObjectId(user._id);
+				return group.members.some((memberId) => userId.equals(memberId));
+			}),
+			balances: allBalances.map((balance) => ({
+				_id: balance._id,
+				groupId: balance.groupId,
+				debtorIds: allGroupUsers.filter((user) =>
+					balance.debtorIds.some((debtorId) => new Types.ObjectId(user._id).equals(debtorId)),
+				),
+				creditorId: allGroupUsers.find((user) =>
+					new Types.ObjectId(user._id).equals(balance.creditorId),
+				),
+				amount: balance.amount,
+				status: balance.settled,
+				date: balance.date,
+			})),
+			groupExpenses: allGroupTransactions
+				.filter((transaction) => transaction.groupId.equals(group._id))
+				.map((transaction) => ({
+					_id: transaction._id,
+					groupId: transaction.groupId,
+					paidBy: allGroupUsers.find((user) =>
+						new Types.ObjectId(user._id).equals(transaction.paidBy),
+					),
+					splitAmong: transaction.splitAmong.map((memberId) =>
+						allGroupUsers.find((user) => new Types.ObjectId(user._id).equals(memberId)),
+					),
+					category: transaction.category,
+					transactionTitle: transaction.transactionTitle,
+					transactionAmount: transaction.transactionAmount,
+					transactionDate: transaction.transactionDate,
+				})),
+		}));
+
+		res.status(200).json({ groups: mappedGroups });
+	} catch (error) {
+		console.error(error);
+		res.status(500).json({ message: "Internal Server Error" });
+	}
 };
 
 // GET : /user/notifications
@@ -1060,25 +1149,76 @@ export const removeMember = async (req: Request, res: Response) => {
 };
 
 export const getselectedlGroup = async (req: Request, res: Response) => {
-    try {
-        const user: UserDocument | null = await User.findOne({
-            email: req.user.email,
-        });
+    const groupId = req.params.groupId;
 
-        if (!user) {
-            return res.status(401).json({ message: "User Not Found" });
-        }
+	try {
+		const user: UserDocument | null = await User.findOne({
+			email: req.user.email,
+		});
 
-        const group: GroupDocument | null = await Group.findOne({
-            _id: req.params.groupId,
-        });
+		if (!user) {
+			return res.status(401).json({ message: "User Not Found" });
+		}
 
-        const selectedgroup: GroupDocument | null = group;
-        res.status(200).json(selectedgroup);
-    } catch (error) {
-        res.status(500).json({ message: "Internal Server Error" });
-    }
+		const group: GroupDocument | null = await Group.findOne({
+			_id: groupId,
+		});
+
+		if (!group) {
+			return res.status(404).json({ message: "Group Not Found" });
+		}
+
+		const allGroupUsers: GroupUserDocument[] | null = await GroupUser.find();
+		const allGroupTransactions: GroupTransactionDocument[] | null = await GroupTransaction.find({
+			groupId: group._id,
+		});
+		const allBalances: BalanceDocument[] | null = await Balance.find({
+			groupId: group._id,
+		});
+
+		const mappedGroup = {
+			_id: group._id,
+			groupName: group.groupName,
+			groupProfile: group.groupProfile ? group.groupProfile : undefined,
+			createdBy: allGroupUsers.find((user) => new Types.ObjectId(user._id).equals(group.createdBy)),
+			members: allGroupUsers.filter((user) => {
+				const userId = new Types.ObjectId(user._id);
+				return group.members.some((memberId) => userId.equals(memberId));
+			}),
+			balances: allBalances.map((balance) => ({
+				_id: balance._id,
+				groupId: balance.groupId,
+				debtorIds: allGroupUsers.filter((user) =>
+					balance.debtorIds.some((debtorId) => new Types.ObjectId(user._id).equals(debtorId)),
+				),
+				creditorId: allGroupUsers.find((user) =>
+					new Types.ObjectId(user._id).equals(balance.creditorId),
+				),
+				amount: balance.amount,
+				status: balance.settled,
+				date: balance.date,
+			})),
+			groupExpenses: allGroupTransactions.map((transaction) => ({
+				_id: transaction._id,
+				groupId: transaction.groupId,
+				paidBy: allGroupUsers.find((user) => new Types.ObjectId(user._id).equals(transaction.paidBy)),
+				splitAmong: transaction.splitAmong.map((memberId) =>
+					allGroupUsers.find((user) => new Types.ObjectId(user._id).equals(memberId)),
+				),
+				category: transaction.category,
+				transactionTitle: transaction.transactionTitle,
+				transactionAmount: transaction.transactionAmount,
+				transactionDate: transaction.transactionDate,
+			})),
+		};
+
+		res.status(200).json(mappedGroup);
+	} catch (error) {
+		console.error(error);
+		res.status(500).json({ message: "Internal Server Error" });
+	}
 };
+
 
 export const getmembersdetail = async (req: Request, res: Response) => {
     try {
@@ -1101,7 +1241,7 @@ export const getmembersdetail = async (req: Request, res: Response) => {
 			userName: groupUser?.userName,
 			email: groupUser?.email,
 			profilePicture: groupUser?.profilePicture,
-			expenses: groupUser?.balances, 
+			// expenses: groupUser?.balances, 
 		};
         res.status(200).json(memberDetails);
     } catch (error) {
@@ -1114,8 +1254,6 @@ export const addGroupTransaction = async (req: Request, res: Response) => {
 	const { groupId, splitAmong, category, transactionTitle, transactionAmount, transactionDate } =
 		req.body;
 
-    const paidBy = req.user._id;    
-
 	try {
 		const user: UserDocument | null = await User.findOne({ email: req.user.email });
 
@@ -1123,63 +1261,49 @@ export const addGroupTransaction = async (req: Request, res: Response) => {
 			return res.status(401).json({ message: "User Not Found" });
 		}
 
+        const groupUser: GroupUserDocument | null = await GroupUser.findOne({ email: req.user.email });
+        
 		const groupUsers: GroupUserDocument[] | null = await GroupUser.find({
-			email: { $in: [...splitAmong, paidBy] },
+			_id: { $in: [...splitAmong, groupUser?._id] },
 		});
-
+        
 		if (!groupUsers) {
-			return res.status(401).json({ message: "Group Users not found" });
-		}        
-
+            return res.status(401).json({ message: "Group Users not found" });
+		}
+                
 		const GroupTransactionDoc = await GroupTransaction.create({
-			groupId,
-			paidBy: new Types.ObjectId(paidBy),
-			splitAmong: splitAmong.map((user: UserDocument) => user._id),
+            groupId,
+			paidBy: new Types.ObjectId(groupUser?._id),
+			splitAmong: splitAmong.map((id: string) => new Types.ObjectId(id)),
 			category,
 			transactionTitle,
 			transactionAmount,
 			transactionDate,
 		});
-
+        
+		const balanceDoc: BalanceDocument | null = await Balance.create({
+			groupId,
+			debtorIds: splitAmong
+				.filter((id: string) => id !== groupUser?._id)
+				.map((id: string) => new Types.ObjectId(id)),
+			creditorId: new Types.ObjectId(groupUser?._id),
+			amount: transactionAmount,
+			date: transactionDate,
+		});
+        
 		const group: GroupDocument | null = await Group.findOne({
 			_id: groupId,
 		});
 
 		if (!group) {
 			return res.status(404).json({ message: "Group doesn't exist" });
-		}        
+		}
 
-		group.totalExpense += parseFloat(transactionAmount);;
+		group.totalExpense += transactionAmount;
 		group.groupTransactions.push(new Types.ObjectId(GroupTransactionDoc._id));
+		group.balances.push(new Types.ObjectId(balanceDoc._id));
 
 		await group.save();
-        
-		const memberIds = splitAmong.map((user: GroupUserDocument) => user._id);
-		const members = await GroupUser.find({
-			_id: { $in: memberIds },
-		});
-        
-		const totalMembers = splitAmong.length + 1;
-		const splitAmount = transactionAmount / totalMembers;
-		const paidAmount = transactionAmount - splitAmount;
-
-
-		for (const member of members) {
-			const balance: BalanceDocument = await Balance.findOneAndUpdate(
-				{ groupId: groupId, memberId: member._id },
-				{
-					$inc: {
-						getsBack: member._id === paidBy ? paidAmount : 0,
-						owes: splitAmong.includes(member._id) ? splitAmount : 0,
-					},
-				},
-				{ upsert: true, new: true },
-			);
-            
-			member.balances.push(balance._id);
-            console.log("A new Transaction was added");
-			io.to(emailToSocketMap[member.email]).emit("newTransaction", "A new Transaction was added");
-		}
 
 		res.status(200).json({ message: "Transaction Added Successfully" });
 	} catch (error) {

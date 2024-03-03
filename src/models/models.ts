@@ -1,6 +1,8 @@
 import bcrypt from "bcrypt";
 import { Document, Schema, Types, model } from "mongoose";
 
+//  # User
+
 export interface UserDocument extends Document {
     _id: string;
     userName: string;
@@ -14,45 +16,6 @@ export interface UserDocument extends Document {
     totalIncome: number;
     totalExpense: number;
     groups: Types.ObjectId[];
-}
-
-export interface UserDataDocument extends Document {
-    _id: string;
-    email: string;
-    userName: string;
-    password: string;
-    profilePicture: string;
-    createdAt: Date;
-}
-
-export interface OTPDocument extends Document {
-    otp: string;
-    email: string;
-    createdAt: Date;
-}
-
-export interface TransactionDocument extends Document {
-    _id: string;
-    transactionAmount: string;
-    category: string;
-    transactionTitle: string;
-    notes: string;
-    invoiceUrl: string;
-    publicId: string;
-    transactionDate: string;
-    type: string;
-    createdBy: Types.ObjectId;
-}
-
-export interface MonthlyHistoryDocument extends Document {
-    _id: string;
-    user: Types.ObjectId;
-    month: string;
-    year: string;
-    transactionIds: [Types.ObjectId];
-    monthlyBalance: number;
-    income: number;
-    expense: number;
 }
 
 const userSchema = new Schema<UserDocument>({
@@ -127,6 +90,17 @@ userSchema.pre<UserDocument>("save", async function (next) {
 
 export const User = model("User", userSchema);
 
+// # UserData
+
+export interface UserDataDocument extends Document {
+	_id: string;
+	email: string;
+	userName: string;
+	password: string;
+	profilePicture: string;
+	createdAt: Date;
+}
+
 const dataSchema = new Schema<UserDataDocument>({
     userName: {
         type: String,
@@ -152,6 +126,14 @@ const dataSchema = new Schema<UserDataDocument>({
 
 export const UserData = model<UserDataDocument>("UserData", dataSchema);
 
+// OTP
+
+export interface OTPDocument extends Document {
+	otp: string;
+	email: string;
+	createdAt: Date;
+}
+
 const otpSchema = new Schema<OTPDocument>({
     otp: {
         type: String,
@@ -169,6 +151,21 @@ const otpSchema = new Schema<OTPDocument>({
 });
 
 export const OTP = model<OTPDocument>("OTP", otpSchema);
+
+// # Transaction
+
+export interface TransactionDocument extends Document {
+	_id: string;
+	transactionAmount: string;
+	category: string;
+	transactionTitle: string;
+	notes: string;
+	invoiceUrl: string;
+	publicId: string;
+	transactionDate: string;
+	type: string;
+	createdBy: Types.ObjectId;
+}
 
 const transactionSchema = new Schema<TransactionDocument>({
     transactionAmount: {
@@ -212,6 +209,19 @@ export const Transaction = model<TransactionDocument>(
     transactionSchema
 );
 
+// # Monthly History
+
+export interface MonthlyHistoryDocument extends Document {
+	_id: string;
+	user: Types.ObjectId;
+	month: string;
+	year: string;
+	transactionIds: [Types.ObjectId];
+	monthlyBalance: number;
+	income: number;
+	expense: number;
+}
+
 const monthlyHistorySchema = new Schema<MonthlyHistoryDocument>({
     user: {
         type: Schema.Types.ObjectId,
@@ -249,71 +259,16 @@ const monthlyHistorySchema = new Schema<MonthlyHistoryDocument>({
 
 export const History = model("History", monthlyHistorySchema);
 
-export interface GroupTransactionDocument extends Document {
-    _id: string;
-    groupId: Types.ObjectId;
-    paidBy: Types.ObjectId;
-    splitAmong: Types.ObjectId[];
-    category: string;
-    transactionTitle: string;
-    notes: string;
-    invoiceUrl: string;
-    publicId: string;
-    transactionDate: string;
-}
+// -----------GROUP------------ //
 
-const groupTransactionSchema = new Schema<GroupTransactionDocument>({
-    groupId: {
-        type: Schema.Types.ObjectId,
-        ref: "Group",
-        required: true,
-    },
-    paidBy: {
-        type: Schema.Types.ObjectId,
-        ref: "User",
-        required: true,
-    },
-    splitAmong: {
-        type: [Schema.Types.ObjectId],
-        ref: "User",
-        required: true,
-    },
-    category: {
-        type: String,
-        required: true,
-    },
-    transactionTitle: {
-        type: String,
-        required: true,
-    },
-    notes: {
-        type: String,
-    },
-    invoiceUrl: {
-        type: String,
-    },
-    publicId: {
-        type: String,
-    },
-    transactionDate: {
-        type: String,
-        required: true,
-    },
-});
+// Group user
 
-export const GroupTransaction = model(
-    "GroupTransaction",
-    groupTransactionSchema
-);
-
-// -----------GROUP-USERS----------- //
 export interface GroupUserDocument extends Document {
 	_id: string;
 	userId: Types.ObjectId;
 	email: string;
 	userName: string;
 	profilePicture: string;
-	balances: Types.ObjectId[];
 }
 
 const groupUserSchema = new Schema<GroupUserDocument>({
@@ -334,14 +289,11 @@ const groupUserSchema = new Schema<GroupUserDocument>({
 		type: String,
 		contentType: String,
 	},
-	balances: {
-		type: [Schema.Types.ObjectId],
-		ref: "Balance",
-		required: true,
-	},
 });
 
 export const GroupUser = model<GroupUserDocument>("GroupUser", groupUserSchema);
+
+// Group
 
 export interface GroupDocument extends Document {
 	groupName: string;
@@ -401,24 +353,30 @@ const groupSchema = new Schema<GroupDocument>({
 
 export const Group = model<GroupDocument>("Group", groupSchema);
 
-const requestSchema = new Schema({
+// # Request
+
+export interface RequestDocument extends Document {
+	_id: string;
+	sender: Types.ObjectId;
+	receiver: Types.ObjectId;
+	groupId: Types.ObjectId;
+	groupName: string;
+	status: string;
+}
+
+const requestSchema = new Schema<RequestDocument>({
 	sender: {
 		type: Schema.Types.ObjectId,
-		ref: "User",
+		ref: "GroupUser",
 	},
 	receiver: {
 		type: Schema.Types.ObjectId,
-		ref: "User",
+		ref: "GroupUser",
 	},
 	groupId: {
 		type: Schema.Types.ObjectId,
 		ref: "Group",
 		required: true,
-	},
-	groupTransactions: {
-		type: [Schema.Types.ObjectId],
-		ref: "GroupTransaction",
-		default: [],
 	},
 	groupName: {
 		type: String,
@@ -433,12 +391,67 @@ const requestSchema = new Schema({
 
 export const GroupRequest = model("GroupRequest", requestSchema);
 
+// # Group Transaction
+
+export interface GroupTransactionDocument extends Document {
+	_id: string;
+	groupId: Types.ObjectId;
+	paidBy: Types.ObjectId;
+	splitAmong: Types.ObjectId[];
+	category: string;
+	transactionTitle: string;
+	transactionAmount: number;
+	transactionDate: string;
+}
+
+const groupTransactionSchema = new Schema<GroupTransactionDocument>({
+	groupId: {
+		type: Schema.Types.ObjectId,
+		ref: "Group",
+		required: true,
+	},
+	paidBy: {
+		type: Schema.Types.ObjectId,
+		ref: "User",
+		required: true,
+	},
+	splitAmong: {
+		type: [Schema.Types.ObjectId],
+		ref: "User",
+		required: true,
+	},
+	category: {
+		type: String,
+		required: true,
+	},
+	transactionTitle: {
+		type: String,
+		required: true,
+	},
+	transactionAmount: {
+		type: Number,
+		required: true,
+	},
+	transactionDate: {
+		type: String,
+		required: true,
+	},
+});
+
+export const GroupTransaction = model(
+    "GroupTransaction",
+    groupTransactionSchema
+);
+
+// # Balance
+
 export interface BalanceDocument extends Document {
 	groupId: Types.ObjectId;
-	memberId: Types.ObjectId;
-	getsBack: number;
-	owes: number;
-	paidBy: Types.ObjectId;
+	debtorIds: Types.ObjectId[];
+	creditorId: Types.ObjectId;
+	amount: number;
+	settled: boolean;
+	date: string;
 }
 
 const balanceSchema = new Schema<BalanceDocument>({
@@ -447,24 +460,29 @@ const balanceSchema = new Schema<BalanceDocument>({
 		ref: "Group",
 		required: true,
 	},
-	memberId: {
+	debtorIds: [
+		{
+			type: Schema.Types.ObjectId,
+			ref: "GroupUser",
+			required: true,
+		},
+	],
+	creditorId: {
 		type: Schema.Types.ObjectId,
 		ref: "GroupUser",
 		required: true,
 	},
-	getsBack: {
+	amount: {
 		type: Number,
 		required: true,
-		default: 0,
 	},
-	owes: {
-		type: Number,
+	settled: {
+		type: Boolean,
 		required: true,
-		default: 0,
+		default: false,
 	},
-	paidBy: {
-		type: Schema.Types.ObjectId,
-		ref: "GroupUser",
+	date: {
+		type: String,
 		required: true,
 	},
 });

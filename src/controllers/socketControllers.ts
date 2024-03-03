@@ -55,8 +55,6 @@ export async function handleSendRequest(socket: CustomSocket, data: requestData)
 			users.forEach(async (user) => {
 				const userSocketId = emailToSocketMap[user.email];
 
-				console.log(user);
-
 				const RequestDocument = await GroupRequest.create({
 					sender: sender?._id,
 					receiver: user._id,
@@ -124,9 +122,7 @@ export async function handleAcceptRequest(socket: Socket, data: { groupId: strin
 
 		userEmails.forEach(async (email) => {
 			const userSocketId = emailToSocketMap[email];
-
 			io.to(userSocketId).emit("updateGroup", { group: updatedGroup });
-			console.log("Updated : ", email, userSocketId);
 		});
 	} catch {}
 }
