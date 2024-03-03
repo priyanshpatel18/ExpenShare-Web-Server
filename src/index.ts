@@ -62,11 +62,15 @@ io.on("connection", (socket: CustomSocket) => {
     });
 
     socket.on("acceptRequest", (data) => {
-        socketController.handleAcceptRequest(socket, data);
+        socketController.updateGroup(socket, data);
     });
 
+    socket.on("addTransaction", (data) => {
+		socketController.updateGroup(socket, data);
+	});
+
     socket.on("removeMember", (data) => {
-        socketController.handleAcceptRequest(socket, data);
+        socketController.updateGroup(socket, data);
     });
 
     socket.on("disconnect", () => {

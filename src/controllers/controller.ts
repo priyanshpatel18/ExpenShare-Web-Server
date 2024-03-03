@@ -887,7 +887,7 @@ export const createGroup = async (req: Request, res: Response) => {
 			groupProfile: groupProfile ? profileUrl : "",
 			publicId: publicId.trim() ? publicId : "",
 			createdBy: new Types.ObjectId(user._id),
-			members: [existingGroupUser._id],
+			members: [existingGroupUser.userId],
 			groupExpense: [],
 			totalExpense: 0,
 			category: category,
@@ -957,22 +957,17 @@ export const getAllGroups = async (req: Request, res: Response) => {
 			groupName: group.groupName,
 			groupProfile: group.groupProfile ? group.groupProfile : undefined,
 			createdBy: allGroupUsers.find((user) => new Types.ObjectId(user._id).equals(group.createdBy)),
-			members: allGroupUsers.filter((user) => {
-				const userId = new Types.ObjectId(user._id);
-				return group.members.some((memberId) => userId.equals(memberId));
-			}),
+			members: group.members
+				.map((memberId) => allGroupUsers.find((groupUser) => memberId.equals(groupUser.userId)))
+				.filter((member) => member !== undefined) as GroupUserDocument[],
 			balances: allBalances.map((balance) => ({
 				_id: balance._id,
 				groupId: balance.groupId,
-				debtorIds: allGroupUsers.filter((user) =>
-					balance.debtorIds.some((debtorId) => new Types.ObjectId(user._id).equals(debtorId)),
-				),
-				creditorId: allGroupUsers.find((user) =>
+				debtor: allGroupUsers.find((user) => new Types.ObjectId(user._id).equals(balance.debtorId)),
+				creditor: allGroupUsers.find((user) =>
 					new Types.ObjectId(user._id).equals(balance.creditorId),
 				),
 				amount: balance.amount,
-				status: balance.settled,
-				date: balance.date,
 			})),
 			groupExpenses: allGroupTransactions
 				.filter((transaction) => transaction.groupId.equals(group._id))
@@ -1066,7 +1061,7 @@ export const handleRequest = async (req: Request, res: Response) => {
             if (!existingGroupUser) {
                 // Create a new GroupUser if it doesn't exist
                 await GroupUser.create({
-                    _id: new Types.ObjectId(user._id),
+                    // _id: new Types.ObjectId(user._id),
                     userId: new Types.ObjectId(user._id),
                     email: user.email,
                     userName: user.userName,
@@ -1181,29 +1176,24 @@ export const getselectedlGroup = async (req: Request, res: Response) => {
 			groupName: group.groupName,
 			groupProfile: group.groupProfile ? group.groupProfile : undefined,
 			createdBy: allGroupUsers.find((user) => new Types.ObjectId(user._id).equals(group.createdBy)),
-			members: allGroupUsers.filter((user) => {
-				const userId = new Types.ObjectId(user._id);
-				return group.members.some((memberId) => userId.equals(memberId));
-			}),
+			members: group.members
+				.map((memberId) => allGroupUsers.find((groupUser) => memberId.equals(groupUser.userId)))
+				.filter((member) => member !== undefined) as GroupUserDocument[],
 			balances: allBalances.map((balance) => ({
 				_id: balance._id,
 				groupId: balance.groupId,
-				debtorIds: allGroupUsers.filter((user) =>
-					balance.debtorIds.some((debtorId) => new Types.ObjectId(user._id).equals(debtorId)),
-				),
-				creditorId: allGroupUsers.find((user) =>
+				debtor: allGroupUsers.find((user) => new Types.ObjectId(user._id).equals(balance.debtorId)),
+				creditor: allGroupUsers.find((user) =>
 					new Types.ObjectId(user._id).equals(balance.creditorId),
 				),
 				amount: balance.amount,
-				status: balance.settled,
-				date: balance.date,
 			})),
 			groupExpenses: allGroupTransactions.map((transaction) => ({
 				_id: transaction._id,
 				groupId: transaction.groupId,
 				paidBy: allGroupUsers.find((user) => new Types.ObjectId(user._id).equals(transaction.paidBy)),
-				splitAmong: transaction.splitAmong.map((memberId) =>
-					allGroupUsers.find((user) => new Types.ObjectId(user._id).equals(memberId)),
+				splitAmong: transaction.splitAmong.map((memberId) => 
+					allGroupUsers.find((user) => new Types.ObjectId(user.userId).equals(memberId))
 				),
 				category: transaction.category,
 				transactionTitle: transaction.transactionTitle,
@@ -1251,8 +1241,7 @@ export const getmembersdetail = async (req: Request, res: Response) => {
 
 // POST group/addtransaction
 export const addGroupTransaction = async (req: Request, res: Response) => {
-	const { groupId, splitAmong, category, transactionTitle, transactionAmount, transactionDate } =
-		req.body;
+	const { groupId, splitAmong, category, transactionTitle, transactionAmount, transactionDate } = req.body;
 
 	try {
 		const user: UserDocument | null = await User.findOne({ email: req.user.email });
@@ -1261,37 +1250,11 @@ export const addGroupTransaction = async (req: Request, res: Response) => {
 			return res.status(401).json({ message: "User Not Found" });
 		}
 
-        const groupUser: GroupUserDocument | null = await GroupUser.findOne({ email: req.user.email });
-        
-		const groupUsers: GroupUserDocument[] | null = await GroupUser.find({
-			_id: { $in: [...splitAmong, groupUser?._id] },
-		});
-        
-		if (!groupUsers) {
-            return res.status(401).json({ message: "Group Users not found" });
-		}
-                
-		const GroupTransactionDoc = await GroupTransaction.create({
-            groupId,
-			paidBy: new Types.ObjectId(groupUser?._id),
-			splitAmong: splitAmong.map((id: string) => new Types.ObjectId(id)),
-			category,
-			transactionTitle,
-			transactionAmount,
-			transactionDate,
-		});
-        
-		const balanceDoc: BalanceDocument | null = await Balance.create({
-			groupId,
-			debtorIds: splitAmong
-				.filter((id: string) => id !== groupUser?._id)
-				.map((id: string) => new Types.ObjectId(id)),
-			creditorId: new Types.ObjectId(groupUser?._id),
-			amount: transactionAmount,
-			date: transactionDate,
-		});
-        
-		const group: GroupDocument | null = await Group.findOne({
+		const groupUser: GroupUserDocument | null = await GroupUser.findOne({ email: req.user.email });
+
+        const paidBy = groupUser?._id;
+
+        const group: GroupDocument | null = await Group.findOne({
 			_id: groupId,
 		});
 
@@ -1299,9 +1262,85 @@ export const addGroupTransaction = async (req: Request, res: Response) => {
 			return res.status(404).json({ message: "Group doesn't exist" });
 		}
 
+		const groupUsers: GroupUserDocument[] | null = await GroupUser.find({
+			_id: { $in: group.members },
+		});
+
+		if (!groupUsers) {
+			return res.status(401).json({ message: "Group Users not found" });
+		}
+
+		const GroupTransactionDoc = await GroupTransaction.create({
+			groupId,
+			paidBy: new Types.ObjectId(paidBy),
+			splitAmong: splitAmong.map((id: string) => new Types.ObjectId(id)),
+			category,
+			transactionTitle,
+			transactionAmount,
+			transactionDate,
+		});
+
+		const balances: BalanceDocument[] | null = await Balance.find({
+			groupId: new Types.ObjectId(groupId),
+		}); 
+
+		const balanceDebtors = splitAmong.filter((id: string) => id !== paidBy);
+
+		for (const debtorId of balanceDebtors) {
+			// Check if Existing Balance exist or not
+			let existingBalance = balances.find((balance) => {
+				return (
+					balance.debtorId.equals(new Types.ObjectId(debtorId)) &&
+					balance.creditorId.equals(new Types.ObjectId(paidBy))
+				);
+			});
+			// Update if it exists
+			if (existingBalance) {
+				existingBalance.amount += transactionAmount / splitAmong.length;
+				await existingBalance.save();
+				continue;
+			}
+			// Check for Reverse Balance
+			const reverseBalance = balances.find((balance) => {
+				return (
+					balance.debtorId.equals(new Types.ObjectId(paidBy)) &&
+					balance.creditorId.equals(new Types.ObjectId(debtorId))
+				);
+			});
+
+			let amountToAdd = transactionAmount / splitAmong.length;
+			// Update if it exists
+			if (reverseBalance) {
+				if (reverseBalance.amount > amountToAdd) {
+					// Update if Reverse Balance has more or equal amount
+					reverseBalance.amount -= amountToAdd;
+					await reverseBalance.save();
+					continue;
+				} else {
+					// Update the amount of New Balance
+					amountToAdd -= reverseBalance.amount;
+					// Delete Reverse Balance has less amount
+					await Balance.deleteOne({ _id: reverseBalance._id });
+					// If amountToAdd = 0, no need to create a new balance
+					if (amountToAdd === 0) {
+						continue;
+					}
+					// Else create a new one
+				}
+			}
+
+			const balanceDoc = await Balance.create({
+				groupId: new Types.ObjectId(groupId),
+				debtorId: new Types.ObjectId(debtorId),
+				creditorId: new Types.ObjectId(paidBy),
+				amount: amountToAdd,
+			});
+
+			group.balances.push(new Types.ObjectId(balanceDoc._id));
+		}
+
 		group.totalExpense += transactionAmount;
 		group.groupTransactions.push(new Types.ObjectId(GroupTransactionDoc._id));
-		group.balances.push(new Types.ObjectId(balanceDoc._id));
 
 		await group.save();
 
