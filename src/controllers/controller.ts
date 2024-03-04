@@ -963,7 +963,7 @@ export const getAllGroups = async (req: Request, res: Response) => {
 			balances: allBalances.map((balance) => ({
 				_id: balance._id,
 				groupId: balance.groupId,
-				debtor: allGroupUsers.find((user) => new Types.ObjectId(user._id).equals(balance.debtorId)),
+				debtor: allGroupUsers.find((user) => new Types.ObjectId(user.userId).equals(balance.debtorId)),
 				creditor: allGroupUsers.find((user) =>
 					new Types.ObjectId(user._id).equals(balance.creditorId),
 				),
@@ -1194,7 +1194,7 @@ export const getselectedlGroup = async (req: Request, res: Response) => {
 				paidBy: allGroupUsers.find((user) => new Types.ObjectId(user._id).equals(transaction.paidBy)),
 				splitAmong: transaction.splitAmong.map((memberId) => 
 					allGroupUsers.find((user) => new Types.ObjectId(user.userId).equals(memberId))
-				),
+				),  
 				category: transaction.category,
 				transactionTitle: transaction.transactionTitle,
 				transactionAmount: transaction.transactionAmount,
@@ -1339,7 +1339,7 @@ export const addGroupTransaction = async (req: Request, res: Response) => {
 			group.balances.push(new Types.ObjectId(balanceDoc._id));
 		}
 
-		group.totalExpense += transactionAmount;
+		group.totalExpense += parseFloat(transactionAmount);
 		group.groupTransactions.push(new Types.ObjectId(GroupTransactionDoc._id));
 
 		await group.save();
