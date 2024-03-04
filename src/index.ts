@@ -65,7 +65,7 @@ io.on("connection", (socket: CustomSocket) => {
         socketController.updateGroup(socket, data);
     });
 
-    socket.on("addTransaction", (data) => {
+    socket.on("addTransaction", (data) => {        
 		socketController.updateGroup(socket, data);
 	});
 

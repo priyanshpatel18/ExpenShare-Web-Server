@@ -1,33 +1,44 @@
 // controllers/socketController.js
 import { Socket } from "socket.io";
-import { GroupRequest, User, Group, GroupDocument, GroupUser, UserDocument, GroupTransactionDocument, GroupTransaction, BalanceDocument, Balance } from "../models/models";
+import {
+	GroupRequest,
+	User,
+	Group,
+	GroupDocument,
+	GroupUser,
+	UserDocument,
+	GroupTransactionDocument,
+	GroupTransaction,
+	BalanceDocument,
+	Balance,
+} from "../models/models";
 import { emailToSocketMap, io } from "..";
 import { Types } from "mongoose";
 
 export async function handleGetUsers(socket: Socket, filter: string) {
-    try {
-        const users = await User.find({
-            $or: [
-                { userName: { $regex: filter, $options: "i" } },
-                { email: { $regex: filter, $options: "i" } },
-            ],
-        });
-        socket.emit("filteredUsers", users);
-    } catch (error) {
-        console.error("Error filtering users:", error);
-    }
+	try {
+		const users = await User.find({
+			$or: [
+				{ userName: { $regex: filter, $options: "i" } },
+				{ email: { $regex: filter, $options: "i" } },
+			],
+		});
+		socket.emit("filteredUsers", users);
+	} catch (error) {
+		console.error("Error filtering users:", error);
+	}
 }
 
 interface requestData {
-    token: string;
-    selectedUsers: [
-        {
-            userName: string;
-            profilePicture: string;
-        }
-    ];
-    groupId: string;
-    groupName: string;
+	token: string;
+	selectedUsers: [
+		{
+			userName: string;
+			profilePicture: string;
+		},
+	];
+	groupId: string;
+	groupName: string;
 }
 
 interface CustomSocket extends Socket {
@@ -107,7 +118,7 @@ export const updateGroup = async (
 	},
 ) => {
 	const { groupId } = data;
-
+	
 	const group: GroupDocument | null = await Group.findOne({ _id: groupId });
 	if (!group) {
 		console.log("No Group");
@@ -116,7 +127,7 @@ export const updateGroup = async (
 	}
 
 	const groupUsers = await GroupUser.find({
-		_id: { $in: group.members },
+		userId: { $in: group.members },
 	});
 
 	const members = groupUsers.map((user) => ({
@@ -128,14 +139,14 @@ export const updateGroup = async (
 
 	const groupTransactions: GroupTransactionDocument[] | null = await GroupTransaction.find({
 		groupId,
-	});
+	});	
 
 	const transactions = groupTransactions.map((transaction) => ({
 		_id: transaction._id,
 		groupId: new Types.ObjectId(transaction.groupId),
 		paidBy: groupUsers.find((user) => new Types.ObjectId(user._id).equals(transaction.paidBy)),
 		splitAmong: groupUsers.filter((user) =>
-			transaction.splitAmong.includes(new Types.ObjectId(user._id)),
+			transaction.splitAmong.includes(new Types.ObjectId(user.userId)),
 		),
 		category: transaction.category,
 		transactionAmount: transaction.transactionAmount,
@@ -160,14 +171,14 @@ export const updateGroup = async (
 		_id: group._id,
 		groupName: group.groupName,
 		groupProfile: group.groupProfile ? group.groupProfile : undefined,
-		createdBy: groupUsers.find((user) => new Types.ObjectId(user._id).equals(group.createdBy)),
+		createdBy: groupUsers.find((user) => new Types.ObjectId(user.userId).equals(group.createdBy)),
 		members: members,
 		groupExpenses: transactions,
 		balances: balances,
 		totalExpense: group.totalExpense,
 		category: group.category,
 	};
-
+	
 	for (const member of groupUsers) {
 		const userSocketId = emailToSocketMap[member.email];
 		if (userSocketId) {
